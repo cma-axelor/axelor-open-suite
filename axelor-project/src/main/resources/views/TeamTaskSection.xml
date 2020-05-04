@@ -6,7 +6,7 @@
 		<field name="name"/>
 	</grid>
 	
-	<form title="Category" name="team-task-section-form" model="com.axelor.apps.project.db.TeamTaskSection">
+	<form name="team-task-section-form"  title="Section" model="com.axelor.apps.project.db.TeamTaskSection">
 		<panel name="mainPanel">
 			<field name="name"/>
 		</panel>

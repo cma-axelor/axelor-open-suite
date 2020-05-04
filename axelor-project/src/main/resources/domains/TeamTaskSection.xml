@@ -7,7 +7,8 @@
 	
 	<entity name="TeamTaskSection">
 	
-		<string name="name" title="name"/>	  
+		<string name="name" title="Name"/>
+		<integer name="sequence" title="Seq."/>	  
 
 	</entity>
 
