@@ -88,7 +88,7 @@
 			</panel>
 			<panel name="characteristicsPanel" title="Characteristics" colSpan="12">
 				<field name="teamTaskCategory" colSpan="4" onSelect="action-task-attrs-team-task-category-configurations" onChange="action-team-task-group-project-category-onchange"/>
-				<field name="teamTaskSection" colSpan="4" form-view="team-task-section-form" grid-view="team-task-section-grid"/>
+				<field name="section" colSpan="4" form-view="section-form" grid-view="section-grid"/>
 				<field name="priority" colSpan="4" required="true"/>
 				<field name="targetVersion" if-module="axelor-business-support" if="__config__.app.isApp('business-support')" domain="self.project = :project OR self.project.parentProject = :project" colSpan="4" form-view="project-version-form" grid-view="project-version-grid"/>
 				<field name="assignment" hidden="true" showIf="typeSelect == 'ticket'" if-module="axelor-business-support" if="__config__.app.isApp('business-support')" colSpan="4"/>

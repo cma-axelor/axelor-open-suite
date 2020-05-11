@@ -5,7 +5,7 @@
 
 	<module name="project" package="com.axelor.apps.project.db"/>
 	
-	<entity name="TeamTaskSection">
+	<entity name="Section">
 	
 		<string name="name" title="Name"/>
 		<integer name="sequence" title="Seq."/>	  

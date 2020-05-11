@@ -41,7 +41,7 @@
 		
 		<many-to-many name="categorySet" ref="com.axelor.apps.project.db.TeamTaskCategory" title="Tags"/>
 		
-		<many-to-one name="teamTaskSection" ref="com.axelor.apps.project.db.TeamTaskSection" title="Section"/>
+		<many-to-one name="section" ref="com.axelor.apps.project.db.Section" title="Section"/>
 
 	 <track replace="true">
 	 	<field name="status"/>
