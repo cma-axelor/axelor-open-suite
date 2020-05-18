@@ -19,6 +19,7 @@
 - Studio : Add support of menu creation for custom model and BPM node.
 - DURATION : add new field applicationType;
 - BPM : Add overview of the result of the wkf.
+- PROJECT : Add custom task editor.
 
 ## Improvements
 - USER : Default User language is based on application.locale from application.properties

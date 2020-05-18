@@ -109,6 +109,12 @@
 		<view type="form" name="team-task-category-form"/>
 	</action-view>
 	
+	<menuitem name="team-task-section" parent="project-configurations" title="Section" action="team.task.section"/>
+	<action-view name="team.task.section" title="Team Task Section" model="com.axelor.apps.project.db.TeamTaskSection">
+		<view type="grid" name="team-task-section-grid"/>
+		<view type="form" name="team-task-section-form"/>
+	</action-view>
+	
 	<menuitem name="project-resource-type" parent="project-configurations" title="Resource types" action="project.resource.types" if="__config__.app.getApp('project').getResourceManagement()" />
 	<action-view name="project.resource.types" title="Resource types" model="com.axelor.apps.project.db.ResourceType">
 		<view type="grid" name="resource-type-grid"/>

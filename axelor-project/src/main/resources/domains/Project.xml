@@ -46,7 +46,7 @@
 		<many-to-many name="startToStartTaskSet" ref="com.axelor.apps.project.db.Project" title="Start tasks to start"/>
 		<many-to-many name="finishToFinishTaskSet" ref="com.axelor.apps.project.db.Project" title="Finish tasks to finish"/>
 		<many-to-many name="startToFinishTaskSet" ref="com.axelor.apps.project.db.Project" title="Start tasks to finish"/>
-		
+				
 		<many-to-one name="company" ref="com.axelor.apps.base.db.Company" title="Company"/>
 		
 		<many-to-many name="productSet" ref="com.axelor.apps.base.db.Product" title="Type of authorized activities"/>

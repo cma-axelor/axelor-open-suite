@@ -49,6 +49,7 @@
 				<item name="ganttItem" title="Gantt" showIf="isProject" action="action-project-open-gantt" />
 				<item name="bookResourceItem" title="Book resource" showIf="isProject" if=" __config__.app.getApp('project')?.resourceManagement"
 					action="save,action-project-book-resource" />
+				<item  showIf="id" title="Editor" action="action-project-open-editor"/>	
 			</menu>
 		</menubar>
 		<panel name="mainPanel">
@@ -726,6 +727,11 @@
 		<view type="form" name="team-task-form" />
 		<domain>self.project.parentProject.id = :_projectId</domain>
 		<context name="_projectId" expr="eval:id" />
+	</action-view>
+	
+	<action-view name="action-project-open-editor" title="Project editor">
+		<view type="html" name="project/project-editor?id={{id}}"/>
+		<context name="id" expr="eval:id"/>
 	</action-view>
 	
 	<action-record name="action-project-record-bind-customer-project" model="com.axelor.apps.project.db.Project">
