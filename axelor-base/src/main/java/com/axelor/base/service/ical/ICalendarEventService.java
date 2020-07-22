@@ -32,4 +32,20 @@ public interface ICalendarEventService {
   List<ICalendarUser> addEmailGuest(EmailAddress email, ICalendarEvent event)
       throws ClassNotFoundException, InstantiationException, IllegalAccessException,
           AxelorException, MessagingException, IOException, ICalendarException, ParseException;
+
+  void applyChangesToAll(ICalendarEvent event);
+
+  void generatRecurrentEvents(ICalendarEvent iCalEvent);
+
+  void applyChangesToAfterThis(ICalendarEvent event);
+
+  void applyChangesToBeforeThis(ICalendarEvent event);
+
+  void removeThisAndAfterThis(ICalendarEvent event);
+
+  void removeBeforeThis(ICalendarEvent event);
+
+  void removeAll(ICalendarEvent event);
+
+  void removeThis(ICalendarEvent event);
 }

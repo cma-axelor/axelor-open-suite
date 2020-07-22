@@ -366,6 +366,24 @@
 	<selection name="icalendar.synchronization.select">
 		<option value="ICalEvent">ICal events only</option>
 	</selection>
+	
+	<selection name="icalendar.event.recurrence.type">
+		<option value="1">Every day</option>
+		<option value="2">Every week</option>
+		<option value="3">Every month</option>
+		<option value="4">Every year</option>
+	</selection>
+	
+	<selection name="icalendar.event.recurrence.end.type">
+		<option value="1">After n repetitions</option>
+		<option value="2">At the date</option>
+		<option value="3">Never</option>
+	</selection>
+	
+	<selection name="icalendar.event.recurrence.month.repeat.type">
+		<option value="1">Day of month</option>
+		<option value="2">Day of week</option>
+	</selection>
 
 	<selection name="base.birt.template.parameter.type.select">
 		<option value="string">String</option>

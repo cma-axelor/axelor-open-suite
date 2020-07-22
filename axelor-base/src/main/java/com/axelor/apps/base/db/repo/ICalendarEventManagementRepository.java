@@ -84,4 +84,11 @@ public class ICalendarEventManagementRepository extends ICalendarEventRepository
     }
     super.remove(entity);
   }
+
+  @Override
+  public ICalendarEvent copy(ICalendarEvent entity, boolean deep) {
+    ICalendarEvent copy = super.copy(entity, deep);
+    copy.setUid(null);
+    return copy;
+  }
 }

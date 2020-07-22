@@ -34,7 +34,6 @@ public class BatchCalendarSynchronization extends AbstractBatch {
   @Override
   protected void process() {
     final Company company = batch.getBaseBatch().getCompany();
-    ;
     final List<ICalendar> calendars =
         repo.all()
             .filter("self.user.activeCompany = :company AND self.isValid = TRUE")

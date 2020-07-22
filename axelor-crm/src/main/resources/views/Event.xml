@@ -162,7 +162,7 @@
 		</panel>
 
 		<panel sidebar="true" title="Characteristics" name="meetingAttributesPanel" canCollapse="true">
-			<field name="recurrenceConfiguration" title="Recurrence" canNew="true" canSelect="false" onChange="save, action-event-method-generate-recurrence" colSpan="12"/>
+			<field name="recurrenceConfiguration" title="Recurrence" canNew="true" canSelect="false" canEdit="true" onChange="save, action-icalendar-event-method-generate-recurrence" colSpan="12"/>
 			<field name="eventCategory" canEdit="false" domain="self.typeSelect = :typeSelect" colSpan="6"/>
 			<field name="callTypeSelect"  showIf="typeSelect == 1" colSpan="6"/>
 			<field name="prioritySelect" showIf="typeSelect == 3" colSpan="6"/>
@@ -267,21 +267,10 @@
 	<action-group name="action-event-group-on-save">
 		<action name="action-event-record-compute-attendee-list"/>
 		<action name="action-event-record-subjectTeam"/>
-		<action name="action-event-view-modifications-recurrence" if="recurrenceConfiguration &amp;&amp; id > 0"/>
 		<action name="save"/>
 		<action name="action-event-method-manage-followers"/>
+		<action name="action-icalendar-event-view-modifications-recurrence" if="recurrenceConfiguration &amp;&amp; id > 0"/>
 	</action-group>
-	
-	<action-view name="action-event-view-modifications-recurrence" title="Apply modifications" model="com.axelor.apps.base.db.Wizard">
-		<view type="form" name="modifications-assistant-form"/>
-		<view-param name="popup" value="reload"/>
-	    <view-param name="forceEdit" value="true"/> 
-	    <view-param name="width" value="800" />
-	    <view-param name="show-toolbar" value="false" />
-	    <view-param name="popup-save" value="false" />
-	    <context name="_idEvent" expr="eval: id"/>
-	</action-view>
-	
 
 	<action-view name="action-event-view-create-opportunity" title="Create opportunity" model="com.axelor.apps.crm.db.Opportunity">
     	<view type="form" name="opportunity-form"/>
@@ -300,17 +289,6 @@
     	<context name="_relatedToSelectId" expr="eval: relatedToSelectId"/>
     </action-view>
 
-	<form model="com.axelor.apps.base.db.Wizard" title="Apply modifications" name="modifications-assistant-form">
-		<panel name="wizardPanel">
-			<button name="applyToThisBtn" title="Apply changes to this event only" onClick="close" colSpan="12"/>
-			<button name="applyToAllBtn" title="Apply changes to all recurrence's events" onClick="action-event-method-apply-changes-to-all" colSpan="12"/>
-		</panel>
-	</form>
-
-    <action-method name="action-event-method-apply-changes-to-all">
-    	<call class="com.axelor.apps.crm.web.EventController" method="applyChangesToAll"/>
-    </action-method>
-    
    
 <!--    ACTION GROUP -->
     
@@ -487,10 +465,6 @@
     <action-method name="action-event-method-compute-from-calendar">
     	<call class="com.axelor.apps.crm.web.EventController" method="computeFromCalendar" />
     </action-method>
-
-	<action-method name="action-event-method-generate-recurrence">
-		<call class="com.axelor.apps.crm.web.EventController" method="generateRecurrentEvents"/>
-	</action-method>
 
 	<action-method name="action-event-method-add-guest">
     	<call class="com.axelor.apps.crm.web.EventController" method="addGuest"/>

@@ -45,6 +45,8 @@ import com.axelor.apps.base.db.repo.PartnerBaseRepository;
 import com.axelor.apps.base.db.repo.PartnerRepository;
 import com.axelor.apps.base.db.repo.ProductBaseRepository;
 import com.axelor.apps.base.db.repo.ProductRepository;
+import com.axelor.apps.base.db.repo.RecurrenceConfigurationBaseRepository;
+import com.axelor.apps.base.db.repo.RecurrenceConfigurationRepository;
 import com.axelor.apps.base.db.repo.SequenceBaseRepository;
 import com.axelor.apps.base.db.repo.SequenceRepository;
 import com.axelor.apps.base.db.repo.TaxBaseRepository;
@@ -131,6 +133,8 @@ import com.axelor.apps.message.service.TemplateMessageServiceImpl;
 import com.axelor.auth.db.repo.UserRepository;
 import com.axelor.base.service.ical.ICalendarEventService;
 import com.axelor.base.service.ical.ICalendarEventServiceImpl;
+import com.axelor.base.service.ical.RecurrenceConfigurationService;
+import com.axelor.base.service.ical.RecurrenceConfigurationServiceImpl;
 import com.axelor.team.db.repo.TeamTaskRepository;
 
 public class BaseModule extends AxelorModule {
@@ -195,5 +199,7 @@ public class BaseModule extends AxelorModule {
     bind(ActionService.class).to(ActionServiceImpl.class);
     bind(PartnerService.class).to(PartnerServiceImpl.class);
     bind(SearchCallService.class).to(SearchCallServiceImpl.class);
+    bind(RecurrenceConfigurationRepository.class).to(RecurrenceConfigurationBaseRepository.class);
+    bind(RecurrenceConfigurationService.class).to(RecurrenceConfigurationServiceImpl.class);
   }
 }

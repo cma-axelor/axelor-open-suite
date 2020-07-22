@@ -96,7 +96,8 @@ public class EventManagementRepository extends EventRepository {
 
   @Override
   public void remove(Event entity) {
-    remove(entity, true);
+    //    remove(entity, true);
+    super.remove(entity);
   }
 
   public void remove(Event entity, boolean removeRemote) {

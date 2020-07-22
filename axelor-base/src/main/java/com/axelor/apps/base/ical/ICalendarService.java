@@ -20,6 +20,7 @@ package com.axelor.apps.base.ical;
 import com.axelor.apps.base.db.ICalendar;
 import com.axelor.apps.base.db.ICalendarEvent;
 import com.axelor.apps.base.db.ICalendarUser;
+import com.axelor.apps.base.db.RecurrenceConfiguration;
 import com.axelor.apps.base.db.repo.ICalendarEventRepository;
 import com.axelor.apps.base.db.repo.ICalendarRepository;
 import com.axelor.apps.base.db.repo.ICalendarUserRepository;
@@ -30,6 +31,8 @@ import com.axelor.apps.message.db.repo.EmailAddressRepository;
 import com.axelor.apps.message.service.MailAccountService;
 import com.axelor.apps.tool.QueryBuilder;
 import com.axelor.auth.db.User;
+import com.axelor.base.service.ical.ICalendarEventService;
+import com.axelor.base.service.ical.RecurrenceConfigurationService;
 import com.axelor.common.StringUtils;
 import com.axelor.exception.AxelorException;
 import com.axelor.exception.db.repo.TraceBackRepository;
@@ -80,6 +83,7 @@ import net.fortuna.ical4j.model.DateTime;
 import net.fortuna.ical4j.model.Parameter;
 import net.fortuna.ical4j.model.Property;
 import net.fortuna.ical4j.model.PropertyList;
+import net.fortuna.ical4j.model.Recur;
 import net.fortuna.ical4j.model.component.VEvent;
 import net.fortuna.ical4j.model.parameter.Cn;
 import net.fortuna.ical4j.model.property.Attendee;
@@ -93,6 +97,7 @@ import net.fortuna.ical4j.model.property.LastModified;
 import net.fortuna.ical4j.model.property.Location;
 import net.fortuna.ical4j.model.property.Organizer;
 import net.fortuna.ical4j.model.property.ProdId;
+import net.fortuna.ical4j.model.property.RRule;
 import net.fortuna.ical4j.model.property.Status;
 import net.fortuna.ical4j.model.property.Summary;
 import net.fortuna.ical4j.model.property.Transp;
@@ -343,7 +348,24 @@ public class ICalendarService {
         iCalendarUserRepository.save(attendee);
       }
     }
+
     iEventRepo.save(event);
+
+    RRule rRule = vEvent.getProperty(Property.RRULE);
+    if (rRule != null) {
+      final Recur recur = rRule.getRecur();
+      if (event.getRecurrenceConfiguration() == null
+          || !recur.toString().equals(event.getRecurrenceConfiguration().getRecurrenceRule())) {
+        RecurrenceConfiguration recConfig =
+            Beans.get(RecurrenceConfigurationService.class)
+                .generateFromRRule(recur.toString(), event.getStartDateTime().toLocalDate());
+        if (recConfig != null) {
+          event.setRecurrenceConfiguration(recConfig);
+          Beans.get(ICalendarEventService.class).generatRecurrentEvents(event);
+        }
+      }
+    }
+
     return event;
   }
 

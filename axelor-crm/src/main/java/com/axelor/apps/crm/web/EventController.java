@@ -21,11 +21,9 @@ import com.axelor.apps.base.service.MapService;
 import com.axelor.apps.crm.db.Event;
 import com.axelor.apps.crm.db.EventReminder;
 import com.axelor.apps.crm.db.Lead;
-import com.axelor.apps.crm.db.RecurrenceConfiguration;
 import com.axelor.apps.crm.db.repo.EventReminderRepository;
 import com.axelor.apps.crm.db.repo.EventRepository;
 import com.axelor.apps.crm.db.repo.LeadRepository;
-import com.axelor.apps.crm.db.repo.RecurrenceConfigurationRepository;
 import com.axelor.apps.crm.exception.IExceptionMessage;
 import com.axelor.apps.crm.service.CalendarService;
 import com.axelor.apps.crm.service.EventService;
@@ -37,7 +35,6 @@ import com.axelor.auth.AuthUtils;
 import com.axelor.auth.db.User;
 import com.axelor.base.service.ical.ICalendarEventService;
 import com.axelor.exception.AxelorException;
-import com.axelor.exception.db.repo.TraceBackRepository;
 import com.axelor.exception.service.TraceBackService;
 import com.axelor.i18n.I18n;
 import com.axelor.inject.Beans;
@@ -47,9 +44,7 @@ import com.google.common.base.Joiner;
 import com.google.inject.Singleton;
 import com.google.inject.persist.Transactional;
 import java.lang.invoke.MethodHandles;
-import java.time.DayOfWeek;
 import java.time.Duration;
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -227,265 +222,6 @@ public class EventController {
     }
   }
 
-  @Transactional(rollbackOn = {Exception.class})
-  public void generateRecurrentEvents(ActionRequest request, ActionResponse response)
-      throws AxelorException {
-    try {
-      Long eventId = (Long) request.getContext().get("id");
-      if (eventId == null)
-        throw new AxelorException(
-            Event.class,
-            TraceBackRepository.CATEGORY_INCONSISTENCY,
-            I18n.get(IExceptionMessage.EVENT_SAVED));
-      Event event = Beans.get(EventRepository.class).find(eventId);
-
-      RecurrenceConfigurationRepository confRepo =
-          Beans.get(RecurrenceConfigurationRepository.class);
-      RecurrenceConfiguration conf = event.getRecurrenceConfiguration();
-      if (conf != null) {
-        conf = confRepo.save(conf);
-        Beans.get(EventService.class).generateRecurrentEvents(event, conf);
-      }
-    } catch (Exception e) {
-      TraceBackService.trace(response, e);
-    }
-  }
-
-  @Transactional
-  public void deleteThis(ActionRequest request, ActionResponse response) {
-    Long eventId = new Long(request.getContext().getParent().get("id").toString());
-    EventRepository eventRepository = Beans.get(EventRepository.class);
-    Event event = eventRepository.find(eventId);
-    Event child =
-        eventRepository.all().filter("self.parentEvent.id = ?1", event.getId()).fetchOne();
-    if (child != null) {
-      child.setParentEvent(event.getParentEvent());
-    }
-    eventRepository.remove(event);
-    response.setCanClose(true);
-    response.setReload(true);
-  }
-
-  @Transactional
-  public void deleteNext(ActionRequest request, ActionResponse response) {
-    Long eventId = new Long(request.getContext().getParent().get("id").toString());
-    EventRepository eventRepository = Beans.get(EventRepository.class);
-    Event event = eventRepository.find(eventId);
-    Event child =
-        eventRepository.all().filter("self.parentEvent.id = ?1", event.getId()).fetchOne();
-    while (child != null) {
-      child.setParentEvent(null);
-      eventRepository.remove(event);
-      event = child;
-      child = eventRepository.all().filter("self.parentEvent.id = ?1", event.getId()).fetchOne();
-    }
-    response.setCanClose(true);
-    response.setReload(true);
-  }
-
-  @Transactional
-  public void deleteAll(ActionRequest request, ActionResponse response) {
-    Long eventId = new Long(request.getContext().getParent().get("id").toString());
-    EventRepository eventRepository = Beans.get(EventRepository.class);
-    Event event = eventRepository.find(eventId);
-    Event child =
-        eventRepository.all().filter("self.parentEvent.id = ?1", event.getId()).fetchOne();
-    Event parent = event.getParentEvent();
-    while (child != null) {
-      child.setParentEvent(null);
-      eventRepository.remove(event);
-      event = child;
-      child = eventRepository.all().filter("self.parentEvent.id = ?1", event.getId()).fetchOne();
-    }
-    while (parent != null) {
-      Event nextParent = parent.getParentEvent();
-      eventRepository.remove(parent);
-      parent = nextParent;
-    }
-    response.setCanClose(true);
-    response.setReload(true);
-  }
-
-  @Transactional(rollbackOn = {Exception.class})
-  public void changeAll(ActionRequest request, ActionResponse response) throws AxelorException {
-    Long eventId = new Long(request.getContext().getParent().get("id").toString());
-    EventRepository eventRepository = Beans.get(EventRepository.class);
-    Event event = eventRepository.find(eventId);
-
-    Event child =
-        eventRepository.all().filter("self.parentEvent.id = ?1", event.getId()).fetchOne();
-    Event parent = event.getParentEvent();
-    child.setParentEvent(null);
-    Event eventDeleted = child;
-    child =
-        eventRepository.all().filter("self.parentEvent.id = ?1", eventDeleted.getId()).fetchOne();
-    while (child != null) {
-      child.setParentEvent(null);
-      eventRepository.remove(eventDeleted);
-      eventDeleted = child;
-      child =
-          eventRepository.all().filter("self.parentEvent.id = ?1", eventDeleted.getId()).fetchOne();
-    }
-    while (parent != null) {
-      Event nextParent = parent.getParentEvent();
-      eventRepository.remove(parent);
-      parent = nextParent;
-    }
-
-    RecurrenceConfiguration conf = request.getContext().asType(RecurrenceConfiguration.class);
-    RecurrenceConfigurationRepository confRepo = Beans.get(RecurrenceConfigurationRepository.class);
-    conf = confRepo.save(conf);
-    event.setRecurrenceConfiguration(conf);
-    event = eventRepository.save(event);
-    if (conf.getRecurrenceType() == null) {
-      throw new AxelorException(
-          TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-          I18n.get(IExceptionMessage.RECURRENCE_RECURRENCE_TYPE));
-    }
-
-    int recurrenceType = conf.getRecurrenceType();
-
-    if (conf.getPeriodicity() == null) {
-      throw new AxelorException(
-          TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-          I18n.get(IExceptionMessage.RECURRENCE_PERIODICITY));
-    }
-
-    int periodicity = conf.getPeriodicity();
-
-    if (periodicity < 1) {
-      throw new AxelorException(
-          TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-          I18n.get(IExceptionMessage.RECURRENCE_PERIODICITY));
-    }
-
-    boolean monday = conf.getMonday();
-    boolean tuesday = conf.getTuesday();
-    boolean wednesday = conf.getWednesday();
-    boolean thursday = conf.getThursday();
-    boolean friday = conf.getFriday();
-    boolean saturday = conf.getSaturday();
-    boolean sunday = conf.getSunday();
-    Map<Integer, Boolean> daysMap = new HashMap<Integer, Boolean>();
-    Map<Integer, Boolean> daysCheckedMap = new HashMap<Integer, Boolean>();
-    if (recurrenceType == 2) {
-      daysMap.put(DayOfWeek.MONDAY.getValue(), monday);
-      daysMap.put(DayOfWeek.TUESDAY.getValue(), tuesday);
-      daysMap.put(DayOfWeek.WEDNESDAY.getValue(), wednesday);
-      daysMap.put(DayOfWeek.THURSDAY.getValue(), thursday);
-      daysMap.put(DayOfWeek.FRIDAY.getValue(), friday);
-      daysMap.put(DayOfWeek.SATURDAY.getValue(), saturday);
-      daysMap.put(DayOfWeek.SUNDAY.getValue(), sunday);
-
-      for (Integer day : daysMap.keySet()) {
-        if (daysMap.get(day)) {
-          daysCheckedMap.put(day, daysMap.get(day));
-        }
-      }
-      if (daysMap.isEmpty()) {
-        throw new AxelorException(
-            TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-            I18n.get(IExceptionMessage.RECURRENCE_DAYS_CHECKED));
-      }
-    }
-
-    int monthRepeatType = conf.getMonthRepeatType();
-
-    int endType = conf.getEndType();
-
-    int repetitionsNumber = 0;
-
-    if (endType == 1) {
-      if (conf.getRepetitionsNumber() == null) {
-        throw new AxelorException(
-            TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-            I18n.get(IExceptionMessage.RECURRENCE_REPETITION_NUMBER));
-      }
-
-      repetitionsNumber = conf.getRepetitionsNumber();
-
-      if (repetitionsNumber < 1) {
-        throw new AxelorException(
-            TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-            IExceptionMessage.RECURRENCE_REPETITION_NUMBER);
-      }
-    }
-    LocalDate endDate = LocalDate.now();
-    if (endType == 2) {
-      if (conf.getEndDate() == null) {
-        throw new AxelorException(
-            TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-            I18n.get(IExceptionMessage.RECURRENCE_END_DATE));
-      }
-
-      endDate = conf.getEndDate();
-
-      if (endDate.isBefore(event.getStartDateTime().toLocalDate())
-          && endDate.isEqual(event.getStartDateTime().toLocalDate())) {
-        throw new AxelorException(
-            TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-            I18n.get(IExceptionMessage.RECURRENCE_END_DATE));
-      }
-    }
-    switch (recurrenceType) {
-      case 1:
-        Beans.get(EventService.class)
-            .addRecurrentEventsByDays(event, periodicity, endType, repetitionsNumber, endDate);
-        break;
-
-      case 2:
-        Beans.get(EventService.class)
-            .addRecurrentEventsByWeeks(
-                event, periodicity, endType, repetitionsNumber, endDate, daysCheckedMap);
-        break;
-
-      case 3:
-        Beans.get(EventService.class)
-            .addRecurrentEventsByMonths(
-                event, periodicity, endType, repetitionsNumber, endDate, monthRepeatType);
-        break;
-
-      case 4:
-        Beans.get(EventService.class)
-            .addRecurrentEventsByYears(event, periodicity, endType, repetitionsNumber, endDate);
-        break;
-
-      default:
-        break;
-    }
-
-    response.setCanClose(true);
-    response.setReload(true);
-  }
-
-  public void applyChangesToAll(ActionRequest request, ActionResponse response) {
-    EventRepository eventRepository = Beans.get(EventRepository.class);
-    Event thisEvent =
-        eventRepository.find(new Long(request.getContext().get("_idEvent").toString()));
-    Event event = eventRepository.find(thisEvent.getId());
-
-    Beans.get(EventService.class).applyChangesToAll(event);
-    response.setCanClose(true);
-    response.setReload(true);
-  }
-
-  public void computeRecurrenceName(ActionRequest request, ActionResponse response) {
-    RecurrenceConfiguration recurrConf = request.getContext().asType(RecurrenceConfiguration.class);
-    response.setValue(
-        "recurrenceName", Beans.get(EventService.class).computeRecurrenceName(recurrConf));
-  }
-
-  public void setCalendarDomain(ActionRequest request, ActionResponse response) {
-    User user = AuthUtils.getUser();
-    List<Long> calendarIdlist = Beans.get(CalendarService.class).showSharedCalendars(user);
-    if (calendarIdlist.isEmpty()) {
-      response.setAttr("calendar", "domain", "self.id is null");
-    } else {
-      response.setAttr(
-          "calendar", "domain", "self.id in (" + Joiner.on(",").join(calendarIdlist) + ")");
-    }
-  }
-
   public void checkRights(ActionRequest request, ActionResponse response) {
     Event event = request.getContext().asType(Event.class);
     User user = AuthUtils.getUser();
@@ -533,6 +269,17 @@ public class EventController {
       response.setCanClose(true);
     } catch (Exception e) {
       TraceBackService.trace(response, e);
+    }
+  }
+
+  public void setCalendarDomain(ActionRequest request, ActionResponse response) {
+    User user = AuthUtils.getUser();
+    List<Long> calendarIdlist = Beans.get(CalendarService.class).showSharedCalendars(user);
+    if (calendarIdlist.isEmpty()) {
+      response.setAttr("calendar", "domain", "self.id is null");
+    } else {
+      response.setAttr(
+          "calendar", "domain", "self.id in (" + Joiner.on(",").join(calendarIdlist) + ")");
     }
   }
 }

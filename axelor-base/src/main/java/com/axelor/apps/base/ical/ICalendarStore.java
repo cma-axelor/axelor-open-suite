@@ -145,8 +145,10 @@ public class ICalendarStore {
 
     for (Calendar cal : calendar.getEventsForTimePeriod(start, end)) {
       cal.toString();
+
       for (Object item : ((List<CalendarComponent>) cal.getComponents(Component.VEVENT))) {
         VEvent event = (VEvent) item;
+
         if (event.getLastModified().getDate().toInstant().isAfter(instant)) {
           events.add(event);
         }

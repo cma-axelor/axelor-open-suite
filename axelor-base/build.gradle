@@ -20,6 +20,7 @@ dependencies {
 	compile "org.mnode.ical4j:ical4j:2.2.0"
 	compile "org.mnode.ical4j:ical4j-extensions:1.0.3"
 	compile "org.mnode.ical4j:ical4j-connector:1.0.1"
+	compile "org.dmfs:lib-recur:0.11.5"
 	compile "com.google.zxing:core:3.3.2"
 	compile 'org.iban4j:iban4j:3.2.1'
 	compile 'com.itextpdf:itextpdf:5.5.13.1'

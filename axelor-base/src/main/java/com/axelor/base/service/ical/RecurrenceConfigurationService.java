@@ -15,31 +15,16 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.axelor.apps.crm.service;
+package com.axelor.base.service.ical;
 
-import com.axelor.apps.base.db.Partner;
-import com.axelor.apps.crm.db.Event;
-import com.axelor.apps.message.db.EmailAddress;
-import com.axelor.auth.db.User;
-import com.axelor.meta.CallMethod;
-import java.time.LocalDateTime;
+import com.axelor.apps.base.db.RecurrenceConfiguration;
+import java.time.LocalDate;
 
-public interface EventService {
+public interface RecurrenceConfigurationService {
 
-  void saveEvent(Event event);
+  public RecurrenceConfiguration generateFromRRule(String rule, LocalDate startDate);
 
-  Event createEvent(
-      LocalDateTime fromDateTime,
-      LocalDateTime toDateTime,
-      User user,
-      String description,
-      int type,
-      String subject);
+  public String computeRecurrenceName(RecurrenceConfiguration recurrConf);
 
-  @CallMethod
-  String getInvoicingAddressFullName(Partner partner);
-
-  void manageFollowers(Event event);
-
-  public EmailAddress getEmailAddress(Event event);
+  public String computeRecurrenceRule(RecurrenceConfiguration recurrConf);
 }

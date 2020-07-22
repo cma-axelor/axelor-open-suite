@@ -39,6 +39,8 @@ import com.axelor.apps.crm.service.OpportunityService;
 import com.axelor.apps.crm.service.OpportunityServiceImpl;
 import com.axelor.apps.crm.service.app.AppCrmService;
 import com.axelor.apps.crm.service.app.AppCrmServiceImpl;
+import com.axelor.apps.crm.service.ical.ICalendarEventServiceCrmImpl;
+import com.axelor.base.service.ical.ICalendarEventServiceImpl;
 
 public class CrmModule extends AxelorModule {
 
@@ -53,6 +55,8 @@ public class CrmModule extends AxelorModule {
     bind(EventService.class).to(EventServiceImpl.class);
     bind(CrmBatchRepository.class).to(CrmBatchCrmRepository.class);
     bind(LeadService.class).to(LeadServiceImpl.class);
+    bind(ICalendarEventServiceImpl.class).to(ICalendarEventServiceCrmImpl.class);
     ICalendarEventFactory.register(ICalendarRepository.CRM_SYNCHRO, Event::new);
+    
   }
 }

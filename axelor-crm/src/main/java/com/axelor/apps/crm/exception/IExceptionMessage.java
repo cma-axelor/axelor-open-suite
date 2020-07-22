@@ -55,9 +55,6 @@ public interface IExceptionMessage {
   /** Event controller */
   static final String EVENT_1 = /*$$(*/ "Input location please" /*)*/;
 
-  static final String EVENT_SAVED = /*$$(*/
-      "Please save the event before setting the recurrence" /*)*/;
-
   /** Lead controller */
   static final String LEAD_1 = /*$$(*/ "Please select the Lead(s) to print." /*)*/;
 
@@ -79,17 +76,4 @@ public interface IExceptionMessage {
       "Please configure all templates in CRM configuration for company %s" /*)*/;
   static final String CRM_CONFIG_TEMPLATES_NONE = /*$$(*/
       "No template created in CRM configuration for company %s, emails have not been sent" /*)*/;
-
-  /*
-   * Recurrence
-   */
-  static final String RECURRENCE_RECURRENCE_TYPE = /*$$(*/
-      "You must choose a recurrence type" /*)*/;
-  static final String RECURRENCE_PERIODICITY = /*$$(*/ "Periodicity must be greater than 0" /*)*/;
-  static final String RECURRENCE_DAYS_CHECKED = /*$$(*/
-      "You must choose at least one day in the week" /*)*/;
-  static final String RECURRENCE_REPETITION_NUMBER = /*$$(*/
-      "The number of repetitions must be greater than 0" /*)*/;
-  static final String RECURRENCE_END_DATE = /*$$(*/
-      "The end date must be after the start date" /*)*/;
 }

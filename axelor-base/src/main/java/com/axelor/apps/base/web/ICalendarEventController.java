@@ -18,12 +18,19 @@
 package com.axelor.apps.base.web;
 
 import com.axelor.apps.base.db.ICalendarEvent;
+import com.axelor.apps.base.db.RecurrenceConfiguration;
+import com.axelor.apps.base.db.repo.ICalendarEventRepository;
+import com.axelor.apps.base.db.repo.RecurrenceConfigurationRepository;
+import com.axelor.apps.base.exceptions.IExceptionMessage;
 import com.axelor.apps.base.ical.ICalendarException;
 import com.axelor.apps.message.db.EmailAddress;
 import com.axelor.apps.message.db.repo.EmailAddressRepository;
 import com.axelor.base.service.ical.ICalendarEventService;
+import com.axelor.base.service.ical.RecurrenceConfigurationService;
 import com.axelor.exception.AxelorException;
+import com.axelor.exception.db.repo.TraceBackRepository;
 import com.axelor.exception.service.TraceBackService;
+import com.axelor.i18n.I18n;
 import com.axelor.inject.Beans;
 import com.axelor.rpc.ActionRequest;
 import com.axelor.rpc.ActionResponse;
@@ -54,5 +61,82 @@ public class ICalendarEventController {
     } catch (Exception e) {
       TraceBackService.trace(response, e);
     }
+  }
+
+  public void generateRecurrentEvents(ActionRequest request, ActionResponse response)
+      throws AxelorException {
+    try {
+      Long eventId = (Long) request.getContext().get("id");
+
+      if (eventId == null)
+        throw new AxelorException(
+            ICalendarEvent.class,
+            TraceBackRepository.CATEGORY_INCONSISTENCY,
+            I18n.get(IExceptionMessage.EVENT_SAVED));
+
+      ICalendarEvent event = Beans.get(ICalendarEventRepository.class).find(eventId);
+
+      if (event.getRecurrenceConfiguration() != null) {
+        Beans.get(ICalendarEventService.class).generatRecurrentEvents(event);
+      }
+    } catch (Exception e) {
+      TraceBackService.trace(response, e);
+    }
+  }
+
+  public void deleteThis(ActionRequest request, ActionResponse response) {
+    Long eventId = new Long(request.getContext().getParent().get("id").toString());
+    ICalendarEventRepository iCalEventRepo = Beans.get(ICalendarEventRepository.class);
+    ICalendarEvent event = iCalEventRepo.find(eventId);
+    Beans.get(ICalendarEventService.class).removeThis(event);
+    response.setReload(true);
+  }
+
+  public void deleteNext(ActionRequest request, ActionResponse response) {
+    Long eventId = new Long(request.getContext().getParent().get("id").toString());
+    ICalendarEventRepository iCalEventRepo = Beans.get(ICalendarEventRepository.class);
+    ICalendarEventService iCalEventService = Beans.get(ICalendarEventService.class);
+    iCalEventService.removeThisAndAfterThis(iCalEventRepo.find(eventId));
+    response.setCanClose(true);
+  }
+
+  public void deleteAll(ActionRequest request, ActionResponse response) {
+    Long eventId = new Long(request.getContext().getParent().get("id").toString());
+    ICalendarEventRepository iCalEventRepo = Beans.get(ICalendarEventRepository.class);
+    ICalendarEvent event = iCalEventRepo.find(eventId);
+    Beans.get(ICalendarEventService.class).removeAll(event);
+    response.setCanClose(true);
+  }
+
+  public void changeAll(ActionRequest request, ActionResponse response) throws AxelorException {
+    Long eventId = new Long(request.getContext().getParent().get("id").toString());
+    ICalendarEventRepository iCalEventRepo = Beans.get(ICalendarEventRepository.class);
+    ICalendarEvent event = iCalEventRepo.find(eventId);
+
+    Beans.get(ICalendarEventService.class).removeAll(event);
+
+    RecurrenceConfiguration conf = request.getContext().asType(RecurrenceConfiguration.class);
+    conf = Beans.get(RecurrenceConfigurationRepository.class).find(conf.getId());
+    if (!conf.equals(event.getRecurrenceConfiguration())) {
+      event.setRecurrenceConfiguration(conf);
+    }
+    Beans.get(ICalendarEventService.class).generatRecurrentEvents(event);
+
+    response.setCanClose(true);
+  }
+
+  public void applyChangesToAll(ActionRequest request, ActionResponse response) {
+    ICalendarEventRepository iCalEventRepo = Beans.get(ICalendarEventRepository.class);
+    ICalendarEvent event =
+        iCalEventRepo.find(new Long(request.getContext().get("_idEvent").toString()));
+    Beans.get(ICalendarEventService.class).applyChangesToAll(event);
+    response.setCanClose(true);
+  }
+
+  public void computeRecurrenceName(ActionRequest request, ActionResponse response) {
+    RecurrenceConfiguration recurrConf = request.getContext().asType(RecurrenceConfiguration.class);
+    response.setValue(
+        "recurrenceName",
+        Beans.get(RecurrenceConfigurationService.class).computeRecurrenceName(recurrConf));
   }
 }

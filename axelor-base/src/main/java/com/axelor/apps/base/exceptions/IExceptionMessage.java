@@ -237,6 +237,22 @@ public interface IExceptionMessage {
   static final String CALENDAR_NO_EVENTS_FOR_SYNC_ERROR = /*$$(*/
       "Calendars are empty, there is no event to synchronize." /*)*/;
 
+  /*
+   * Recurrence
+   */
+  static final String EVENT_SAVED = /*$$(*/
+      "Please save the event before setting the recurrence" /*)*/;
+  static final String RECURRENCE_RECURRENCE_RULE_INVALID = /*$$(*/ "Invalid recurrence rule" /*)*/;
+  static final String RECURRENCE_RECURRENCE_TYPE = /*$$(*/
+      "You must choose a recurrence type" /*)*/;
+  static final String RECURRENCE_PERIODICITY = /*$$(*/ "Periodicity must be greater than 0" /*)*/;
+  static final String RECURRENCE_DAYS_CHECKED = /*$$(*/
+      "You must choose at least one day in the week" /*)*/;
+  static final String RECURRENCE_REPETITION_NUMBER = /*$$(*/
+      "The number of repetitions must be greater than 0" /*)*/;
+  static final String RECURRENCE_END_DATE = /*$$(*/
+      "The end date must be after the start date" /*)*/;
+
   /** Price list */
   String PRICE_LIST_DATE_WRONG_ORDER = /*$$(*/ "The end date is before the begin date." /*)*/;
 
