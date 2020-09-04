@@ -47,6 +47,7 @@
 			  <item name="allTasks" title="All tasks" action="action-project-method-all-tasks" showIf="id"/>
 			</menu>
 			<menu name="projectToolsMenu" title="Tools" showTitle="true" icon="fa-wrench">
+				<item name="editorItem" showIf="id" title="Task editor" action="save,action-project-open-task-editor"/>	
 				<item name="ganttItem" title="Gantt" showIf="id &amp;&amp; isShowGantt" action="action-project-open-gantt"/>
 				<item name="bookResourceItem" title="Book resource" if=" __config__.app.getApp('project')?.resourceManagement"
 					action="save,action-project-book-resource"/>
@@ -756,6 +757,11 @@
 	    <view type="grid" name="project-activity-grid"/>
 	    <view type="form" name="project-activity-form"/>
 	    <domain>self.project.id = :id</domain>
+	</action-view>
+	
+    <action-view name="action-project-open-task-editor" title="Task editor">
+		<view type="html" name="project/task-editor?id={{id}}"/>
+		<context name="id" expr="eval:id"/>
 	</action-view>
 
     <action-view name="dashlet.task" title="Tasks" model="com.axelor.apps.project.db.Project">
