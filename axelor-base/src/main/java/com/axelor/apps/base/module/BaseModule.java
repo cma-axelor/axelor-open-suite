@@ -64,12 +64,16 @@ import com.axelor.apps.base.service.BankServiceImpl;
 import com.axelor.apps.base.service.BarcodeGeneratorService;
 import com.axelor.apps.base.service.BarcodeGeneratorServiceImpl;
 import com.axelor.apps.base.service.BaseReportGenerator;
+import com.axelor.apps.base.service.CellMergingService;
+import com.axelor.apps.base.service.CellMergingServiceImpl;
 import com.axelor.apps.base.service.CompanyService;
 import com.axelor.apps.base.service.CompanyServiceImpl;
 import com.axelor.apps.base.service.DMSImportWizardService;
 import com.axelor.apps.base.service.DMSImportWizardServiceImpl;
 import com.axelor.apps.base.service.DurationService;
 import com.axelor.apps.base.service.DurationServiceImpl;
+import com.axelor.apps.base.service.ExcelReportTemplateService;
+import com.axelor.apps.base.service.ExcelReportTemplateServiceImpl;
 import com.axelor.apps.base.service.FrequencyService;
 import com.axelor.apps.base.service.FrequencyServiceImpl;
 import com.axelor.apps.base.service.MailServiceBaseImpl;
@@ -221,5 +225,7 @@ public class BaseModule extends AxelorModule {
     bind(PrintTemplateService.class).to(PrintTemplateServiceImpl.class);
     bind(PrintService.class).to(PrintServiceImpl.class);
     bind(PrintTemplateLineService.class).to(PrintTemplateLineServiceImpl.class);
+    bind(ExcelReportTemplateService.class).to(ExcelReportTemplateServiceImpl.class);
+    bind(CellMergingService.class).to(CellMergingServiceImpl.class);
   }
 }
