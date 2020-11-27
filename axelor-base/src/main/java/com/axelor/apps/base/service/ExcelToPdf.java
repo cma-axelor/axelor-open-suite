@@ -17,13 +17,17 @@
  */
 package com.axelor.apps.base.service;
 
+import com.axelor.app.AppSettings;
 import com.axelor.apps.base.db.Print;
 import com.axelor.common.ObjectUtils;
 import com.axelor.common.StringUtils;
 import com.axelor.exception.service.TraceBackService;
+import com.axelor.inject.Beans;
 import com.axelor.meta.MetaFiles;
 import com.itextpdf.awt.geom.Dimension;
 import com.itextpdf.html2pdf.ConverterProperties;
+import com.itextpdf.html2pdf.HtmlConverter;
+import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.text.BadElementException;
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Document;
@@ -33,14 +37,17 @@ import com.itextpdf.text.Font;
 import com.itextpdf.text.FontFactory;
 import com.itextpdf.text.Image;
 import com.itextpdf.text.PageSize;
+import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.Phrase;
 import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.ColumnText;
 import com.itextpdf.text.pdf.PdfContentByte;
+import com.itextpdf.text.pdf.PdfImportedPage;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPCellEvent;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfPageEventHelper;
+import com.itextpdf.text.pdf.PdfReader;
 import com.itextpdf.text.pdf.PdfWriter;
 import java.io.File;
 import java.io.FileInputStream;
@@ -87,53 +94,72 @@ public class ExcelToPdf {
 
   public class Header extends PdfPageEventHelper {
 
-    protected XSSFSheet headerSheet;
-    protected XSSFSheet footerSheet;
+    protected Print print;
+    protected PdfImportedPage page;
 
-    public void setHeaderSheet(XSSFSheet headerSheet) {
-      this.headerSheet = headerSheet;
+    public void setPrint(Print print) {
+      this.print = print;
     }
 
-    public void setFooterSheet(XSSFSheet footerSheet) {
-      this.footerSheet = footerSheet;
+    public void setPage(PdfImportedPage page) {
+      this.page = page;
     }
 
     @Override
     public void onEndPage(PdfWriter writer, Document document) {
 
       PdfContentByte contentByte = writer.getDirectContent();
-      PdfPTable headerTable;
-      PdfPTable footerTable;
 
       try {
 
-        headerTable = null;
-        footerTable = null;
-
-        if (ObjectUtils.notEmpty(headerSheet)) {
-          headerTable = createPdfPTable(headerSheet);
+        if (ObjectUtils.notEmpty(page)) {
+          contentByte.addTemplate(page, 0, 0);
         }
 
-        if (ObjectUtils.notEmpty(footerSheet)) {
-          footerTable = createPdfPTable(footerSheet);
-        }
+        if (ObjectUtils.notEmpty(print.getPrintPdfFooter())) {
 
-        if (ObjectUtils.notEmpty(headerTable)) {
-          headerTable.setTotalWidth(document.right() - document.left() + 40);
-          headerTable.writeSelectedRows(
-              0, -1, document.left(), document.top() + document.topMargin() - 30, contentByte);
-          headerSheet = null;
-        }
+          String footerTextAlignment = print.getFooterTextAlignment();
+          String footerFontColor = print.getFooterFontColor();
 
-        if (ObjectUtils.notEmpty(footerTable)) {
-          footerTable.setTotalWidth(document.right() - document.left());
-          footerTable.writeSelectedRows(0, -1, document.left(), document.bottom(), contentByte);
-          footerSheet = null;
+          PdfPTable footerTable = new PdfPTable(1);
+
+          Paragraph paragraph = new Paragraph(print.getPrintPdfFooter());
+          Font font =
+              FontFactory.getFont(
+                  print.getFooterFontType() != null
+                      ? print.getFooterFontType()
+                      : FontFactory.TIMES_ROMAN);
+
+          if (footerFontColor != null) {
+            font.setColor(getCellFooterFontColor(footerFontColor));
+          }
+          font.setSize(
+              print.getFooterFontSize().compareTo(BigDecimal.ZERO) > 0
+                  ? print.getFooterFontSize().floatValue()
+                  : 10);
+          if (print.getIsFooterUnderLine()) {
+            font.setStyle(Font.UNDERLINE);
+          }
+
+          PdfPCell cell = new PdfPCell();
+
+          paragraph.setFont(font);
+
+          cell.setBorder(Rectangle.NO_BORDER);
+          if (footerTextAlignment != null) {
+            paragraph.setAlignment(getCellFooterTextAlignment(footerTextAlignment));
+          }
+
+          cell.addElement(paragraph);
+
+          footerTable.addCell(cell);
+          footerTable.setTotalWidth(document.right() - document.left() - 60);
+          footerTable.writeSelectedRows(0, 1, document.left(), document.bottom(), contentByte);
         }
 
         for (Image image : imageList) writer.getDirectContent().addImage(image);
 
-      } catch (DocumentException | IOException e) {
+      } catch (Exception e) {
         TraceBackService.trace(e);
       }
 
@@ -146,6 +172,72 @@ public class ExcelToPdf {
           0);
 
       pageNo++;
+    }
+
+    private int getCellFooterTextAlignment(String footerTextAlignment) {
+
+      int alignment = 0;
+      switch (footerTextAlignment) {
+        case "left":
+          alignment = Element.ALIGN_LEFT;
+          break;
+        case "center":
+          alignment = Element.ALIGN_CENTER;
+          break;
+        case "right":
+          alignment = Element.ALIGN_RIGHT;
+          break;
+        default:
+          break;
+      }
+      return alignment;
+    }
+
+    private BaseColor getCellFooterFontColor(String footerFontColor) {
+
+      BaseColor color = BaseColor.BLACK;
+
+      switch (footerFontColor) {
+        case "blue":
+          color = BaseColor.BLUE;
+          break;
+        case "cyan":
+          color = BaseColor.CYAN;
+          break;
+        case "dark-gray":
+          color = BaseColor.DARK_GRAY;
+          break;
+        case "gray":
+          color = BaseColor.GRAY;
+          break;
+        case "green":
+          color = BaseColor.GREEN;
+          break;
+        case "light-gray":
+          color = BaseColor.LIGHT_GRAY;
+          break;
+        case "magneta":
+          color = BaseColor.MAGENTA;
+          break;
+        case "orange":
+          color = BaseColor.ORANGE;
+          break;
+        case "pink":
+          color = BaseColor.PINK;
+          break;
+        case "red":
+          color = BaseColor.RED;
+          break;
+        case "white":
+          color = BaseColor.WHITE;
+          break;
+        case "yellow":
+          color = BaseColor.YELLOW;
+          break;
+        default:
+          break;
+      }
+      return color;
     }
   }
 
@@ -184,23 +276,18 @@ public class ExcelToPdf {
     XSSFWorkbook workbook = new XSSFWorkbook(excelStream);
     pdfPictureMap = pictureMap;
     pdfPictureRowShiftMap = pictureRowShiftMap;
-    this.setMaxMarginRowsArray(workbook, headerFooterSheetMap, pictureMap);
+    this.setMaxMarginRowsArray(print);
     ImmutablePair<Document, File> pdfPair = createPdfDoc(pdfFile, print);
     Document pdfDoc = pdfPair.getLeft();
     pdfFile = pdfPair.getRight();
     dataSizeReductionPercentage = dataSizeReduction.floatValue();
 
-    ConverterProperties converterProperties = new ConverterProperties();
-    converterProperties.setBaseUri(pdfFile.getAbsolutePath());
+    headerEvent.setPrint(print);
 
     for (int sheetNum = 0; sheetNum < workbook.getNumberOfSheets(); sheetNum++) {
       XSSFSheet sheet = workbook.getSheetAt(sheetNum);
       imageList = new ArrayList<>();
-      headerEvent.setHeaderSheet(headerFooterSheetMap.get(sheet.getSheetName()).getLeft());
-
       sheetToPdf(pdfDoc, sheet);
-
-      headerEvent.setFooterSheet(headerFooterSheetMap.get(sheet.getSheetName()).getRight());
       pdfDoc.newPage();
     }
 
@@ -385,22 +472,28 @@ public class ExcelToPdf {
 
   private ImmutablePair<Document, File> createPdfDoc(File pdfFile, Print print)
       throws DocumentException, IOException {
-    Document pdfDoc = null;
+
+    Document doc = null;
 
     if (potrait) {
-      pdfDoc = new Document(PageSize.A4);
+      doc = new Document(PageSize.A4);
     } else {
-      pdfDoc = new Document(PageSize.A4.rotate());
+      doc = new Document(PageSize.A4.rotate());
     }
+
     FileOutputStream fileOutputStream = new FileOutputStream(pdfFile.getAbsolutePath());
-    PdfWriter writer = PdfWriter.getInstance(pdfDoc, fileOutputStream);
+    PdfWriter writer = PdfWriter.getInstance(doc, fileOutputStream);
+
     headerEvent = new Header();
     writer.setPageEvent(headerEvent);
-    pdfDoc.setMargins(20, 20, headerFooterMarginArray[0], headerFooterMarginArray[1]);
-    pdfDoc.setMarginMirroring(false);
-    pdfDoc.open();
 
-    return new ImmutablePair<>(pdfDoc, pdfFile);
+    // sets header page to event
+    this.setPdfImportedPageHeader(print, writer);
+    doc.setMargins(20, 20, headerFooterMarginArray[0], headerFooterMarginArray[1]);
+    doc.setMarginMirroring(false);
+    doc.open();
+
+    return new ImmutablePair<>(doc, pdfFile);
   }
 
   private int[] getMaxRowColumn(XSSFSheet sheet) {
@@ -576,27 +669,61 @@ public class ExcelToPdf {
     return isInMergedRegion;
   }
 
-  protected void setMaxMarginRowsArray(
-      XSSFWorkbook workbook,
-      Map<String, ImmutablePair<XSSFSheet, XSSFSheet>> headerFooterSheetMap,
-      Map<String, List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>>
-          pictureMap) {
-    String firstSheetName = workbook.getSheetAt(0).getSheetName();
+  protected void setMaxMarginRowsArray(Print print) {
+
     float headerMargin = 0;
     float footerMargin = 0;
 
-    if (ObjectUtils.notEmpty(headerFooterSheetMap.get(firstSheetName).getLeft())) {
-      Iterator<Row> rowIterator = headerFooterSheetMap.get(firstSheetName).getLeft().iterator();
-      while (rowIterator.hasNext()) headerMargin += rowIterator.next().getHeight();
-      headerMargin = headerMargin / 15f;
+    if (StringUtils.notEmpty(print.getPrintPdfHeader())) {
+      headerMargin = 105;
     }
-    if (ObjectUtils.notEmpty(headerFooterSheetMap.get(firstSheetName).getRight())) {
-      Iterator<Row> rowIterator = headerFooterSheetMap.get(firstSheetName).getRight().iterator();
-      while (rowIterator.hasNext()) footerMargin += rowIterator.next().getHeight();
-      footerMargin = footerMargin / 15f;
+
+    if (StringUtils.notEmpty(print.getPrintPdfFooter())) {
+      footerMargin = print.getFooterFontSize().floatValue() * 3;
     }
 
     headerFooterMarginArray[0] = headerMargin + 20;
     headerFooterMarginArray[1] = footerMargin + 20;
+  }
+
+  protected void setPdfImportedPageHeader(Print print, PdfWriter writer) throws IOException {
+
+    String attachmentPath = AppSettings.get().getPath("file.upload.dir", "");
+    if (attachmentPath != null) {
+      attachmentPath =
+          attachmentPath.endsWith(File.separator)
+              ? attachmentPath
+              : attachmentPath + File.separator;
+    }
+
+    // creates pdf file from html header
+    File headerFile = MetaFiles.createTempFile("Header", ".pdf").toFile();
+    FileOutputStream headerFileOutputStream = new FileOutputStream(headerFile.getAbsolutePath());
+    com.itextpdf.kernel.pdf.PdfWriter pdfWriter =
+        new com.itextpdf.kernel.pdf.PdfWriter(headerFileOutputStream);
+    PdfDocument pdfDoc = new PdfDocument(pdfWriter);
+    pdfDoc.setDefaultPageSize(
+        potrait
+            ? com.itextpdf.kernel.geom.PageSize.A4
+            : com.itextpdf.kernel.geom.PageSize.A4.rotate());
+
+    String html = Beans.get(PrintServiceImpl.class).generateHtml(print);
+    ConverterProperties converterProperties = new ConverterProperties();
+    converterProperties.setBaseUri(attachmentPath);
+    HtmlConverter.convertToPdf(html, pdfDoc, converterProperties);
+
+    headerFileOutputStream.close();
+
+    // reads header from already created pdf file
+    FileInputStream headerInputStream = new FileInputStream(headerFile.getAbsolutePath());
+    PdfReader reader = new PdfReader(headerInputStream);
+    PdfImportedPage page = writer.getImportedPage(reader, 1);
+    headerInputStream.close();
+
+    // sets header page to the event
+    headerEvent.setPage(page);
+
+    // delete header pdf file
+    headerFile.delete();
   }
 }
