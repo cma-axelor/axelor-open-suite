@@ -17,8 +17,10 @@
  */
 package com.axelor.apps.base.service;
 
+import com.axelor.apps.base.db.Print;
 import com.axelor.apps.base.db.PrintTemplate;
 import com.axelor.apps.base.exceptions.IExceptionMessage;
+import com.axelor.apps.base.service.HtmlToExcel.RichTextDetails;
 import com.axelor.apps.base.service.app.AppBaseService;
 import com.axelor.common.ObjectUtils;
 import com.axelor.common.StringUtils;
@@ -74,12 +76,15 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.ClientAnchor;
 import org.apache.poi.ss.usermodel.CreationHelper;
 import org.apache.poi.ss.usermodel.Drawing;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Picture;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFDrawing;
 import org.apache.poi.xssf.usermodel.XSSFPicture;
+import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.apache.poi.xssf.usermodel.XSSFShape;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -120,6 +125,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       new HashMap<>();
   private XSSFSheet originSheet;
   private Map<String, ImmutablePair<XSSFSheet, XSSFSheet>> headerFooterSheetMap = new HashMap<>();
+  private Print print = null;
 
   @Override
   public File createReport(List<Long> objectIds, PrintTemplate printTemplate) throws Exception {
@@ -133,13 +139,17 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     BigDecimal dataSizeReduction = printTemplate.getDataSizeReduction();
     maxRows = Beans.get(AppBaseService.class).getAppBase().getMaxRows();
     maxColumns = Beans.get(AppBaseService.class).getAppBase().getMaxColumns();
+    print = Beans.get(PrintTemplateService.class).generatePrint(objectIds.get(0), printTemplate);
 
     int scale = Beans.get(AppBaseService.class).getAppBase().getBigdecimalScale();
     if (scale != 0) BIGDECIMAL_SCALE = scale;
 
     List<Model> result = this.getModelData(modelFullName, objectIds);
-    Map<Integer, Map<String, Object>> inputMap = this.getInputMap(file, TEMPLATE_SHEET_TITLE);
-    this.getHeadersAndFooters(file);
+
+    XSSFWorkbook wb = new XSSFWorkbook(new FileInputStream(file));
+    Map<Integer, Map<String, Object>> inputMap = this.getInputMap(wb, TEMPLATE_SHEET_TITLE);
+    this.getHeadersAndFooters(wb);
+    wb.close();
 
     XSSFWorkbook newWb =
         this.createXSSFWorkbook(inputMap, result, this.getMapper(modelFullName), formatType);
@@ -160,7 +170,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
               pictureRowShiftMap,
               !isLandscape,
               dataSizeReduction,
-              Beans.get(PrintTemplateService.class).generatePrint(objectIds.get(0), printTemplate));
+              print);
     } else {
       return null;
     }
@@ -179,15 +189,48 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   }
 
   @SuppressWarnings("resource")
-  protected Map<Integer, Map<String, Object>> getInputMap(File file, String sheetName)
+  protected Map<Integer, Map<String, Object>> getInputMap(XSSFWorkbook wb, String sheetName)
       throws IOException {
     Map<Integer, Map<String, Object>> map = new HashMap<>();
-    FileInputStream fis;
 
-    fis = new FileInputStream(file);
     int lastColumn = 0;
-    XSSFWorkbook wb = new XSSFWorkbook(fis);
+
     XSSFSheet sheet;
+
+    if (sheetName.equalsIgnoreCase(HEADER_SHEET_TITLE)
+        && ObjectUtils.notEmpty(print.getPrintPdfHeader())) {
+      Map<String, Object> dataMap = new HashMap<>();
+      dataMap.put(KEY_ROW, 1);
+      dataMap.put(KEY_COLUMN, 1);
+      dataMap.put(KEY_VALUE, "");
+      dataMap.put(KEY_CELL_STYLE, wb.createCellStyle());
+      map.put(0, dataMap);
+    }
+
+    if (sheetName.equalsIgnoreCase(FOOTER_SHEET_TITLE)
+        && ObjectUtils.notEmpty(print.getPrintPdfFooter())) {
+
+      Font font = wb.createFont();
+      font.setFontName(
+          print.getFooterFontType() != null ? print.getFooterFontType() : "Times Roman");
+      font.setFontHeightInPoints(
+          print.getFooterFontSize().equals(BigDecimal.ZERO)
+              ? (short) 10
+              : print.getFooterFontSize().shortValue());
+      font.setColor(getCellFooterFontColor(print.getFooterFontColor()));
+      if (print.getIsFooterUnderLine()) {
+        font.setUnderline(Font.U_SINGLE);
+      }
+      CellStyle cellStyle = wb.createCellStyle();
+      cellStyle.setFont(font);
+
+      Map<String, Object> dataMap = new HashMap<>();
+      dataMap.put(KEY_ROW, 1);
+      dataMap.put(KEY_COLUMN, 1);
+      dataMap.put(KEY_VALUE, print.getPrintPdfFooter());
+      dataMap.put(KEY_CELL_STYLE, cellStyle);
+      map.put(0, dataMap);
+    }
 
     if (wb.getSheet(sheetName) == null) return map;
 
@@ -225,8 +268,6 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
         }
       }
     }
-
-    wb.close();
 
     return map;
   }
@@ -391,7 +432,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       XSSFWorkbook workbook, Map<Integer, Map<String, Object>> map, String name, String sheetName) {
 
     XSSFSheet sheet = workbook.createSheet(sheetName);
-    sheet = this.write(map, sheet, 0);
+    sheet = this.write(map, sheet, 0, false);
     this.fillMergedRegionCells(sheet);
 
     this.setMergedRegionsInSheet(sheet, headerFooterMergedCellsMap.get(name));
@@ -932,7 +973,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
   protected XSSFSheet writeTemplateSheet(
       Map<Integer, Map<String, Object>> outputMap, XSSFSheet sheet, int offset) {
-    sheet = this.write(outputMap, sheet, offset);
+    sheet = this.write(outputMap, sheet, offset, false);
     this.fillMergedRegionCells(sheet);
     this.setMergedRegionsInSheet(sheet, mergedCellsRangeAddressSetPerSheet);
     return sheet;
@@ -946,7 +987,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   }
 
   protected XSSFSheet write(
-      Map<Integer, Map<String, Object>> outputMap, XSSFSheet sheet, int offset) {
+      Map<Integer, Map<String, Object>> outputMap,
+      XSSFSheet sheet,
+      int offset,
+      boolean setExtraHeight) {
     for (Map.Entry<Integer, Map<String, Object>> entry : outputMap.entrySet()) {
       Map<String, Object> m = entry.getValue();
       int cellRow = (Integer) m.get(KEY_ROW) + offset;
@@ -962,12 +1006,20 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       }
       CellStyle newCellStyle = sheet.getWorkbook().createCellStyle();
       CellStyle oldCellStyle = (CellStyle) m.get(KEY_CELL_STYLE);
-      Object cellValue = m.get(KEY_VALUE);
-      String value = cellValue == null ? null : cellValue.toString();
-      c.setCellValue(value);
-      newCellStyle.cloneStyleFrom(oldCellStyle);
-      c.setCellStyle(newCellStyle);
 
+      Object cellValue = m.get(KEY_VALUE);
+      if (cellValue.getClass().equals(XSSFRichTextString.class)) {
+        c.setCellValue((XSSFRichTextString) cellValue);
+      } else {
+        c.setCellValue(cellValue.toString());
+      }
+
+      if (ObjectUtils.notEmpty(oldCellStyle)) {
+        newCellStyle.cloneStyleFrom(oldCellStyle);
+        c.setCellStyle(newCellStyle);
+      }
+
+      r.setHeightInPoints(setExtraHeight ? 50 : -1);
       sheet.setColumnWidth(cellColumn, originSheet.getColumnWidth(cellColumn));
     }
     return sheet;
@@ -1007,13 +1059,26 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       Map<Integer, Map<String, Object>> outputMap,
       Map<Integer, Map<String, Object>> headerOutputMap) {
 
+    String html = print.getPrintPdfHeader();
+    if (StringUtils.notEmpty(html)) {
+      // convert html to rich text
+      List<RichTextDetails> cellValues = new ArrayList<>();
+      XSSFRichTextString cellValue = new XSSFRichTextString(html);
+      cellValues.add(Beans.get(HtmlToExcel.class).createCellValue(html, sheet.getWorkbook()));
+      if (ObjectUtils.notEmpty(cellValues.get(0))) {
+        cellValue = Beans.get(HtmlToExcel.class).mergeTextDetails(cellValues);
+      }
+      // set rich text in map
+      headerOutputMap.get(0).replace(KEY_VALUE, cellValue);
+    }
+
     List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>
         headerTripleList = pictureInputMap.get(HEADER_SHEET_TITLE);
 
     int lastHeaderLineRow = 0;
     if (ObjectUtils.notEmpty(headerOutputMap)) {
       lastHeaderLineRow = this.getHeaderLines(headerOutputMap);
-      sheet = this.write(headerOutputMap, sheet, 0);
+      sheet = this.write(headerOutputMap, sheet, 0, true);
     }
 
     if (ObjectUtils.notEmpty(headerTripleList)) {
@@ -1080,7 +1145,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       this.writePictures(sheet, footerTripleList, FOOTER_SHEET_TITLE);
     }
 
-    sheet = this.write(footerOutputMap, sheet, 0);
+    sheet = this.write(footerOutputMap, sheet, 0, true);
 
     if (ObjectUtils.notEmpty(headerFooterMergedCellsMap.get(FOOTER_SHEET_TITLE))) {
       Set<CellRangeAddress> footerMergedCellsList =
@@ -1143,9 +1208,9 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return headerLines + 1;
   }
 
-  protected void getHeadersAndFooters(File file) throws IOException {
-    headerInputMap = this.getInputMap(file, HEADER_SHEET_TITLE);
-    footerInputMap = this.getInputMap(file, FOOTER_SHEET_TITLE);
+  protected void getHeadersAndFooters(XSSFWorkbook wb) throws IOException {
+    headerInputMap = this.getInputMap(wb, HEADER_SHEET_TITLE);
+    footerInputMap = this.getInputMap(wb, FOOTER_SHEET_TITLE);
   }
 
   protected Object getCellValue(Cell cell) {
@@ -1190,6 +1255,53 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     boolean hasNoBackgroundColor = cell.getCellStyle().getFillBackgroundColor() == 64;
 
     return isEmpty || (isBlank && hasNoBorder && hasNoBackgroundColor);
+  }
+
+  private short getCellFooterFontColor(String footerFontColor) {
+
+    short color = IndexedColors.BLACK.getIndex();
+
+    switch (footerFontColor) {
+      case "blue":
+        color = IndexedColors.BLUE.getIndex();
+        break;
+      case "cyan":
+        color = IndexedColors.LIGHT_BLUE.getIndex();
+        break;
+      case "dark-gray":
+        color = IndexedColors.GREY_80_PERCENT.getIndex();
+        break;
+      case "gray":
+        color = IndexedColors.GREY_50_PERCENT.getIndex();
+        break;
+      case "green":
+        color = IndexedColors.GREEN.getIndex();
+        break;
+      case "light-gray":
+        color = IndexedColors.GREY_25_PERCENT.getIndex();
+        break;
+      case "magneta":
+        color = IndexedColors.LAVENDER.getIndex();
+        break;
+      case "orange":
+        color = IndexedColors.ORANGE.getIndex();
+        break;
+      case "pink":
+        color = IndexedColors.PINK.getIndex();
+        break;
+      case "red":
+        color = IndexedColors.RED.getIndex();
+        break;
+      case "white":
+        color = IndexedColors.WHITE.getIndex();
+        break;
+      case "yellow":
+        color = IndexedColors.YELLOW.getIndex();
+        break;
+      default:
+        break;
+    }
+    return color;
   }
 
   /** Groovy condition feature * */
