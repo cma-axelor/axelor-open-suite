@@ -637,7 +637,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
             if (getConditionResult(value, object)) {
               m.replace(KEY_VALUE, "");
             } else {
-              m.replace(KEY_VALUE, value.substring(0, value.indexOf(" : ")).trim());
+              m.replace(KEY_VALUE, value.substring(0, value.lastIndexOf(" : ")).trim());
             }
           }
           this.shiftRows(m, false, totalRecord);
@@ -1267,7 +1267,9 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   private short getCellFooterFontColor(String footerFontColor) {
 
     short color = IndexedColors.BLACK.getIndex();
-
+    if (ObjectUtils.isEmpty(footerFontColor)) {
+      return color;
+    }
     switch (footerFontColor) {
       case "blue":
         color = IndexedColors.BLUE.getIndex();
