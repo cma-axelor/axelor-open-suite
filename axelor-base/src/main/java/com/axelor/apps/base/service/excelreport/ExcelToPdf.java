@@ -15,10 +15,11 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.axelor.apps.base.service;
+package com.axelor.apps.base.service.excelreport;
 
 import com.axelor.app.AppSettings;
 import com.axelor.apps.base.db.Print;
+import com.axelor.apps.base.service.PrintService;
 import com.axelor.common.ObjectUtils;
 import com.axelor.common.StringUtils;
 import com.axelor.exception.service.TraceBackService;
@@ -707,7 +708,7 @@ public class ExcelToPdf {
             ? com.itextpdf.kernel.geom.PageSize.A4
             : com.itextpdf.kernel.geom.PageSize.A4.rotate());
 
-    String html = Beans.get(PrintServiceImpl.class).generateHtml(print);
+    String html = Beans.get(PrintService.class).generateHtml(print);
     ConverterProperties converterProperties = new ConverterProperties();
     converterProperties.setBaseUri(attachmentPath);
     HtmlConverter.convertToPdf(html, pdfDoc, converterProperties);

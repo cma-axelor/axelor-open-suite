@@ -15,13 +15,14 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.axelor.apps.base.service;
+package com.axelor.apps.base.service.excelreport;
 
 import com.axelor.apps.base.db.Print;
 import com.axelor.apps.base.db.PrintTemplate;
 import com.axelor.apps.base.exceptions.IExceptionMessage;
-import com.axelor.apps.base.service.HtmlToExcel.RichTextDetails;
+import com.axelor.apps.base.service.PrintTemplateService;
 import com.axelor.apps.base.service.app.AppBaseService;
+import com.axelor.apps.base.service.excelreport.HtmlToExcel.RichTextDetails;
 import com.axelor.common.ObjectUtils;
 import com.axelor.common.StringUtils;
 import com.axelor.db.JPA;

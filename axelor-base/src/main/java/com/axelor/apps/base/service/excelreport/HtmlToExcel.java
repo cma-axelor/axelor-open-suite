@@ -1,4 +1,4 @@
-package com.axelor.apps.base.service;
+package com.axelor.apps.base.service.excelreport;
 
 import java.awt.Color;
 import java.util.ArrayList;
