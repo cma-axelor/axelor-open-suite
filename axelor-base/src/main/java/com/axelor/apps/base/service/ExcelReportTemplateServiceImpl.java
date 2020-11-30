@@ -632,7 +632,14 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
           }
           object = mainObject;
         } else {
-
+          // hide/show label
+          if (value.contains(" : ") && (value.contains("hide") || value.contains("show"))) {
+            if (getConditionResult(value, object)) {
+              m.replace(KEY_VALUE, "");
+            } else {
+              m.replace(KEY_VALUE, value.substring(0, value.indexOf(" : ")).trim());
+            }
+          }
           this.shiftRows(m, false, totalRecord);
         }
       } else {
