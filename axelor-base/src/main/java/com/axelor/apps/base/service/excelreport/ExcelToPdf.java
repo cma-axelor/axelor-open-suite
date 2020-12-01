@@ -31,6 +31,7 @@ import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.text.BadElementException;
 import com.itextpdf.text.BaseColor;
+import com.itextpdf.text.Chunk;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Element;
@@ -72,6 +73,7 @@ import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFPicture;
+import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -384,7 +386,7 @@ public class ExcelToPdf {
           return null;
         }
 
-        pdfPCell = new PdfPCell(new Phrase(cellValue, font));
+        pdfPCell = new PdfPCell(getParagraph(cell, font));
 
         if (pictureCell) {
           this.setPicture(
@@ -631,6 +633,105 @@ public class ExcelToPdf {
     int g = Integer.valueOf(hexColor.substring(3, 5), 16);
     int b = Integer.valueOf(hexColor.substring(5, 7), 16);
     return new BaseColor(r, g, b);
+  }
+
+  private Paragraph getParagraph(XSSFCell cell, Font font) {
+    Paragraph p = new Paragraph();
+    String pdfValue = cell.getStringCellValue();
+
+    int runIndex = 0;
+    int runLength = 0;
+    boolean hasScript = false;
+    XSSFCellStyle style = null;
+    XSSFFont rtsFont = null;
+    XSSFRichTextString rts = (XSSFRichTextString) cell.getRichStringCellValue();
+    style = cell.getCellStyle();
+    rtsFont = style.getFont();
+
+    ImmutablePair<String, String> superTagPair = new ImmutablePair<>("<super>", "</super>");
+    ImmutablePair<String, String> subTagPair = new ImmutablePair<>("<sub>", "</sub>");
+
+    if (rts.numFormattingRuns() > 1) {
+      for (int k = 0; k < rts.numFormattingRuns(); k++) {
+
+        runLength = rts.getLengthOfFormattingRun(k);
+        runIndex = rts.getIndexOfFormattingRun(k);
+        String scriptText = rts.toString().substring(runIndex, (runIndex + runLength));
+        rtsFont = rts.getFontOfFormattingRun(k);
+
+        if (rtsFont.getTypeOffset() == XSSFFont.SS_SUPER) {
+          hasScript = true;
+          pdfValue =
+              pdfValue.replace(
+                  scriptText, superTagPair.getLeft() + scriptText + superTagPair.getRight());
+        }
+        if (rtsFont.getTypeOffset() == XSSFFont.SS_SUB) {
+          hasScript = true;
+          pdfValue =
+              pdfValue.replace(
+                  scriptText, subTagPair.getLeft() + scriptText + subTagPair.getRight());
+        }
+      }
+    }
+
+    if (hasScript) {
+      p.addAll(getChunkList(pdfValue, font, superTagPair, subTagPair));
+    } else {
+      p.add(new Chunk(pdfValue, font));
+    }
+    return p;
+  }
+
+  private List<Chunk> getChunkList(
+      String pdfValue,
+      Font font,
+      ImmutablePair<String, String> superTagPair,
+      ImmutablePair<String, String> subTagPair) {
+    List<Chunk> chunkList = new ArrayList<>();
+    Font scriptFont = new Font(font);
+    scriptFont.setSize(font.getSize() - 3);
+
+    while ((pdfValue.contains(superTagPair.getLeft()) && pdfValue.contains(superTagPair.getRight()))
+        || (pdfValue.contains(subTagPair.getLeft()) && pdfValue.contains(subTagPair.getRight()))) {
+
+      if (pdfValue.contains(superTagPair.getLeft()) && pdfValue.contains(superTagPair.getRight())) {
+        chunkList.add(
+            new Chunk(
+                org.apache.commons.lang3.StringUtils.substringBefore(
+                    pdfValue, superTagPair.getLeft()),
+                font));
+        Chunk chunk =
+            new Chunk(
+                org.apache.commons.lang3.StringUtils.substringBetween(
+                    pdfValue, superTagPair.getLeft(), superTagPair.getRight()),
+                scriptFont);
+        chunk.setTextRise(font.getSize() / 3);
+        chunkList.add(chunk);
+        pdfValue =
+            org.apache.commons.lang3.StringUtils.substringAfter(pdfValue, superTagPair.getRight());
+      }
+
+      if (pdfValue.contains(subTagPair.getLeft()) && pdfValue.contains(subTagPair.getRight())) {
+        chunkList.add(
+            new Chunk(
+                org.apache.commons.lang3.StringUtils.substringBefore(
+                    pdfValue, subTagPair.getLeft()),
+                font));
+        Chunk chunk =
+            new Chunk(
+                org.apache.commons.lang3.StringUtils.substringBetween(
+                    pdfValue, subTagPair.getLeft(), subTagPair.getRight()),
+                scriptFont);
+        chunk.setTextRise(-(font.getSize() / 3));
+        chunkList.add(chunk);
+        pdfValue =
+            org.apache.commons.lang3.StringUtils.substringAfter(pdfValue, subTagPair.getRight());
+      }
+    }
+
+    chunkList.add(new Chunk(pdfValue, font));
+
+    return chunkList;
   }
 
   private ImmutablePair<Integer, Integer> getRowAndColumnSpan(XSSFCell cell) {

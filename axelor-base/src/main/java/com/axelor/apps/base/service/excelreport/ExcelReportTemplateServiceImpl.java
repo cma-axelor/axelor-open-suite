@@ -1231,7 +1231,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
         value = cell.getNumericCellValue();
         break;
       case STRING:
-        value = cell.getStringCellValue();
+        value = cell.getRichStringCellValue();
         break;
       case BLANK:
         value = cell.getStringCellValue();
