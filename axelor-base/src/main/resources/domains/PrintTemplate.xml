@@ -37,6 +37,9 @@
 		<integer name="inputTypeSelect" title="Input type" selection="base.print.template.input.type.select" required="true" default="1"/>
 		<many-to-one name="excelTemplate" ref="com.axelor.meta.db.MetaFile" title="Excel template"/>  		
   		<decimal name="dataSizeReduction" title="Data size reduction" min="1" max="100" default="100"/>
+  		
+  		<decimal name="headerHeight" title="Header height" default="20"/>
+  		<decimal name="footerHeight" title="Footer height" default="20"/>
 		
     </entity>
 

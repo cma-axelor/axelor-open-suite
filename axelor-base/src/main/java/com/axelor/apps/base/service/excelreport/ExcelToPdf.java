@@ -40,9 +40,7 @@ import com.itextpdf.text.FontFactory;
 import com.itextpdf.text.Image;
 import com.itextpdf.text.PageSize;
 import com.itextpdf.text.Paragraph;
-import com.itextpdf.text.Phrase;
 import com.itextpdf.text.Rectangle;
-import com.itextpdf.text.pdf.ColumnText;
 import com.itextpdf.text.pdf.PdfContentByte;
 import com.itextpdf.text.pdf.PdfImportedPage;
 import com.itextpdf.text.pdf.PdfPCell;
@@ -89,8 +87,6 @@ public class ExcelToPdf {
       pdfPictureMap;
   private Map<String, Map<String, List<ImmutablePair<Integer, Integer>>>> pdfPictureRowShiftMap =
       new HashMap<>();
-  private int pageNo = 1;
-  private float[] headerFooterMarginArray = new float[2];
   private boolean pictureCell = false;
   private List<Image> imageList;
   private float dataSizeReductionPercentage = 100; // value should be between 0 to 100
@@ -165,16 +161,6 @@ public class ExcelToPdf {
       } catch (Exception e) {
         TraceBackService.trace(e);
       }
-
-      ColumnText.showTextAligned(
-          contentByte,
-          Element.ALIGN_CENTER,
-          new Phrase("Page " + pageNo),
-          document.right() - 30,
-          20,
-          0);
-
-      pageNo++;
     }
 
     private int getCellFooterTextAlignment(String footerTextAlignment) {
@@ -279,7 +265,6 @@ public class ExcelToPdf {
     XSSFWorkbook workbook = new XSSFWorkbook(excelStream);
     pdfPictureMap = pictureMap;
     pdfPictureRowShiftMap = pictureRowShiftMap;
-    this.setMaxMarginRowsArray(print);
     ImmutablePair<Document, File> pdfPair = createPdfDoc(pdfFile, print);
     Document pdfDoc = pdfPair.getLeft();
     pdfFile = pdfPair.getRight();
@@ -492,7 +477,8 @@ public class ExcelToPdf {
 
     // sets header page to event
     this.setPdfImportedPageHeader(print, writer);
-    doc.setMargins(20, 20, headerFooterMarginArray[0], headerFooterMarginArray[1]);
+    doc.setMargins(
+        20, 20, print.getHeaderHeight().floatValue(), print.getFooterHeight().floatValue());
     doc.setMarginMirroring(false);
     doc.open();
 
@@ -769,23 +755,6 @@ public class ExcelToPdf {
       }
     }
     return isInMergedRegion;
-  }
-
-  protected void setMaxMarginRowsArray(Print print) {
-
-    float headerMargin = 0;
-    float footerMargin = 0;
-
-    if (StringUtils.notEmpty(print.getPrintPdfHeader())) {
-      headerMargin = 105;
-    }
-
-    if (StringUtils.notEmpty(print.getPrintPdfFooter())) {
-      footerMargin = print.getFooterFontSize().floatValue() * 3;
-    }
-
-    headerFooterMarginArray[0] = headerMargin + 20;
-    headerFooterMarginArray[1] = footerMargin + 20;
   }
 
   protected void setPdfImportedPageHeader(Print print, PdfWriter writer) throws IOException {

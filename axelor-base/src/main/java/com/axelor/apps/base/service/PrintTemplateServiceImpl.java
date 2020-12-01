@@ -123,6 +123,8 @@ public class PrintTemplateServiceImpl implements PrintTemplateService {
     print.setIsEditable(printTemplate.getIsEditable());
     print.setAttach(printTemplate.getAttach());
     print.setMetaFileField(printTemplate.getMetaFileField());
+    print.setHeaderHeight(printTemplate.getHeaderHeight());
+    print.setFooterHeight(printTemplate.getFooterHeight());
 
     if (!printTemplate.getHidePrintSettings()) {
       if (StringUtils.notEmpty(printTemplate.getPrintTemplatePdfHeader())) {
