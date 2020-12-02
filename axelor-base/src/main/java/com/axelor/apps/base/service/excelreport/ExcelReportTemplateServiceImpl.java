@@ -973,7 +973,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     object = pair.getRight();
 
     Object outputValue = "";
-    if (ObjectUtils.isEmpty(property.get(object))) {
+    if (object == null || ObjectUtils.isEmpty(property.get(object))) {
       outputValue = "";
     } else if (property.isReference()) {
       outputValue = findNameColumn(property, property.get(object));
@@ -1047,7 +1047,9 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     }
 
     while (property != null && property.getTarget() != null && iter.hasNext()) {
-      value = property.get(value);
+      if (ObjectUtils.notEmpty(value)) {
+        value = property.get(value);
+      }
       current = Mapper.of(property.getTarget());
       property = current.getProperty(iter.next());
     }

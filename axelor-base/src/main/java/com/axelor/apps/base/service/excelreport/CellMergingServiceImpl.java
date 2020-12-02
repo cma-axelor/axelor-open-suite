@@ -51,7 +51,7 @@ public class CellMergingServiceImpl implements CellMergingService {
       for (CellRangeAddress cellRange : mergedCellsRangeAddressList) {
         if (cellRange.isInRange(
             (int) entry.getValue().get(KEY_ROW), (int) entry.getValue().get(KEY_COLUMN))) {
-          content = (String) entry.getValue().get(KEY_VALUE);
+          content = entry.getValue().get(KEY_VALUE).toString();
           if (StringUtils.notBlank(content)) {
             if (content.charAt(0) == '$') {
               String propertyName = content.substring(1);
