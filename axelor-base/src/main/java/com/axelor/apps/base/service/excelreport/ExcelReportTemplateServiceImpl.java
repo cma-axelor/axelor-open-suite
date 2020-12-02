@@ -704,6 +704,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
             } else {
               m.replace(KEY_VALUE, value.substring(0, value.lastIndexOf(" : ")).trim());
             }
+          } else if (value.startsWith("if") && value.contains("->")) { // if else condition
+            m.replace(KEY_VALUE, getIfConditionResult(value, object).getLeft());
           }
           this.shiftRows(m, false, totalRecord);
         }
@@ -1432,10 +1434,11 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
         flag = validateCondition(condition, bean);
 
         if ((boolean) flag) {
-          resultValue = line.substring(line.indexOf("$")).trim();
+          resultValue = line.substring(line.indexOf("->") + 2).trim();
+          break;
         }
       } else if (line.startsWith("else")) {
-        resultValue = line.substring(line.indexOf("$")).trim();
+        resultValue = line.substring(line.indexOf("->") + 2).trim();
       }
     }
 
@@ -1443,7 +1446,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       throw new AxelorException(
           TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
           "Invalid condition format : " + statement);
-    } else if (resultValue.contains(" ")) {
+    } else if (resultValue.contains(" ") && resultValue.contains("$")) {
       value = resultValue.substring(0, resultValue.indexOf(" "));
       operation = resultValue.substring(resultValue.indexOf(" "));
     } else {
