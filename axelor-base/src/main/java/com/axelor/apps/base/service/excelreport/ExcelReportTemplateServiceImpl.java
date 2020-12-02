@@ -127,6 +127,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   private XSSFSheet originSheet;
   private Map<String, ImmutablePair<XSSFSheet, XSSFSheet>> headerFooterSheetMap = new HashMap<>();
   private Print print = null;
+  private List<Integer> removeCellKeyList = new ArrayList<Integer>();
 
   @Override
   public File createReport(List<Long> objectIds, PrintTemplate printTemplate) throws Exception {
@@ -376,6 +377,18 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       footerOutputMap =
           this.getOutputMap(footerInputMap, mapper, dataItem, FOOTER_SHEET_TITLE, sheetName);
       outputMap = this.getOutputMap(inputMap, mapper, dataItem, TEMPLATE_SHEET_TITLE, sheetName);
+
+      // hide collections if any and recalculate
+      if (ObjectUtils.notEmpty(removeCellKeyList)) {
+        outputMap =
+            this.getOutputMap(
+                getHideCollectionInputMap(inputMap),
+                mapper,
+                dataItem,
+                TEMPLATE_SHEET_TITLE,
+                sheetName);
+      }
+
       XSSFSheet newSheet = newWb.createSheet(sheetName);
 
       if (formatType.equals("XLSX")) {
@@ -404,6 +417,53 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     }
 
     return newWb;
+  }
+
+  private Map<Integer, Map<String, Object>> getHideCollectionInputMap(
+      Map<Integer, Map<String, Object>> inputMap) {
+    List<ImmutablePair<Integer, Integer>> removeCellRowColumnPair = new ArrayList<>();
+    List<Integer> finalRemoveKeyPairList = new ArrayList<>();
+    // new input map
+    Map<Integer, Map<String, Object>> newInputMap =
+        new HashMap<Integer, Map<String, Object>>(inputMap);
+
+    // get location of all cells to hide
+    for (Integer key : removeCellKeyList) {
+      Integer row = (Integer) inputMap.get(key).get(KEY_ROW);
+      Integer column = (Integer) inputMap.get(key).get(KEY_COLUMN);
+      removeCellRowColumnPair.add(new ImmutablePair<>(row, column));
+      removeCellRowColumnPair.add(new ImmutablePair<>(row + 1, column));
+      removeCellRowColumnPair.add(new ImmutablePair<>(row - 1, column));
+    }
+
+    // get all hiding cell keys
+    for (Map.Entry<Integer, Map<String, Object>> entry : inputMap.entrySet()) {
+      for (ImmutablePair<Integer, Integer> pair : removeCellRowColumnPair) {
+        if (entry.getValue().get(KEY_ROW).equals(pair.getLeft())
+            && entry.getValue().get(KEY_COLUMN).equals(pair.getRight())) {
+          finalRemoveKeyPairList.add(entry.getKey());
+        }
+      }
+    }
+
+    // shift cells to left which occur after the cells to remove
+    for (Map.Entry<Integer, Map<String, Object>> entry : inputMap.entrySet()) {
+      for (ImmutablePair<Integer, Integer> pair : removeCellRowColumnPair) {
+        if (entry.getValue().get(KEY_ROW).equals(pair.getLeft())
+            && (Integer) entry.getValue().get(KEY_COLUMN) > (pair.getRight())) {
+          newInputMap
+              .get(entry.getKey())
+              .replace(KEY_COLUMN, (Integer) entry.getValue().get(KEY_COLUMN) - 1);
+        }
+      }
+    }
+
+    // remove cells to hide
+    for (Integer key : finalRemoveKeyPairList) {
+      newInputMap.remove(key);
+    }
+
+    return newInputMap;
   }
 
   private void resetPictureMap() {
@@ -627,9 +687,13 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
               totalRecord = collectionEntryPair.getLeft();
             }
           } else {
-
+            if (propertyName.contains(":")) {
+              hide = getConditionResult(value, object);
+              value = value.substring(0, value.indexOf(":")).trim();
+            }
             outputMap.put(
-                entry.getKey(), this.getFormulaResultMap(entry, value, totalRecord, recordId));
+                entry.getKey(),
+                this.getFormulaResultMap(entry, value, totalRecord, recordId, hide));
           }
           object = mainObject;
         } else {
@@ -648,6 +712,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
         this.shiftRows(m, true, totalRecord);
       }
     }
+
     return outputMap;
   }
 
@@ -736,6 +801,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     ImmutablePair<Property, Object> pair;
     Mapper o2mMapper = Mapper.of(property.getTarget());
     propertyName = propertyName.substring(propertyName.indexOf(".") + 1);
+
+    if (hide) {
+      removeCellKeyList.add(entry.getKey());
+    }
 
     Map<String, Object> newEntryValueMap = new HashMap<>(entryValueMap);
     this.shiftRows(newEntryValueMap, false, totalRecord);
@@ -853,7 +922,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       Map.Entry<Integer, Map<String, Object>> entry,
       String content,
       int totalRecord,
-      long recordId) {
+      long recordId,
+      boolean hide) {
     Triple<String, String, String> operatingTriple = this.getOperatingTriple(content.substring(1));
     String operation = operatingTriple.getLeft();
     String m2oFieldName = operatingTriple.getMiddle();
@@ -862,7 +932,13 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     Map<String, Object> newMap = new HashMap<>();
     newMap.putAll(entry.getValue());
     newMap.replace(KEY_ROW, (Integer) newMap.get(KEY_ROW) + totalRecord);
-    newMap.replace(KEY_VALUE, this.getResult(operation, m2oFieldName, condition, recordId));
+
+    String result = "";
+    if (!hide) {
+      result = this.getResult(operation, m2oFieldName, condition, recordId);
+    }
+
+    newMap.replace(KEY_VALUE, result);
 
     newAddress =
         cellMergingService.setMergedCellsForTotalRow(
