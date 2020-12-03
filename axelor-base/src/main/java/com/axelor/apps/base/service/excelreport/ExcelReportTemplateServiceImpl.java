@@ -56,8 +56,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -128,6 +130,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   private Map<String, ImmutablePair<XSSFSheet, XSSFSheet>> headerFooterSheetMap = new HashMap<>();
   private Print print = null;
   private List<Integer> removeCellKeyList = new ArrayList<Integer>();
+  private ResourceBundle resourceBundle;
 
   @Override
   public File createReport(List<Long> objectIds, PrintTemplate printTemplate) throws Exception {
@@ -142,6 +145,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     maxRows = Beans.get(AppBaseService.class).getAppBase().getMaxRows();
     maxColumns = Beans.get(AppBaseService.class).getAppBase().getMaxColumns();
     print = Beans.get(PrintTemplateService.class).generatePrint(objectIds.get(0), printTemplate);
+    resourceBundle = getResourceBundle(printTemplate.getLanguage().getCode());
 
     int scale = Beans.get(AppBaseService.class).getAppBase().getBigdecimalScale();
     if (scale != 0) BIGDECIMAL_SCALE = scale;
@@ -599,6 +603,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     for (Map.Entry<Integer, Map<String, Object>> entry : inputMap.entrySet()) {
       Map<String, Object> m = new HashMap<>(entry.getValue());
       boolean hide = false; // groovy condition boolean
+      boolean translate = false; // language translation boolean
       String operationString = null;
 
       if (nextRowCheckActive) {
@@ -612,6 +617,21 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
       Object cellValue = m.get(KEY_VALUE);
       String value = cellValue == null ? null : cellValue.toString();
+
+      // check for translation function
+      if (value.startsWith("_t(value:")) {
+        translate = true;
+        value = org.apache.commons.lang3.StringUtils.chop(value.trim().replace("_t(value:", ""));
+      } else if (value.trim().startsWith("_t('") || value.trim().startsWith("_t(‘")) {
+        translate = true;
+        value =
+            value
+                .trim()
+                .replace("_t('", "")
+                .replace("_t(‘", "")
+                .replace("')", "")
+                .replace("’)", "");
+      }
 
       outputMap.put(entry.getKey(), m);
       if (StringUtils.notBlank(value)) {
@@ -650,7 +670,14 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
               m =
                   this.getNonCollectionEntry(
-                      m, mapper, property, mainObject, propertyName, totalRecord, operationString);
+                      m,
+                      mapper,
+                      property,
+                      mainObject,
+                      propertyName,
+                      totalRecord,
+                      operationString,
+                      translate);
 
             } else {
 
@@ -682,7 +709,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
                       index,
                       totalRecord,
                       hide,
-                      operationString);
+                      operationString,
+                      translate);
               outputMap = collectionEntryPair.getRight();
               totalRecord = collectionEntryPair.getLeft();
             }
@@ -700,13 +728,19 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
           // hide/show label
           if (value.contains(" : ") && (value.contains("hide") || value.contains("show"))) {
             if (getConditionResult(value, object)) {
-              m.replace(KEY_VALUE, "");
+              value = "";
             } else {
-              m.replace(KEY_VALUE, value.substring(0, value.lastIndexOf(" : ")).trim());
+              value = value.substring(0, value.lastIndexOf(" : ")).trim();
             }
           } else if (value.startsWith("if") && value.contains("->")) { // if else condition
-            m.replace(KEY_VALUE, getIfConditionResult(value, object).getLeft());
+            value = getIfConditionResult(value, object).getLeft();
           }
+
+          // translate
+          if (translate) {
+            value = resourceBundle.getString(value);
+          }
+          m.replace(KEY_VALUE, value);
           this.shiftRows(m, false, totalRecord);
         }
       } else {
@@ -716,6 +750,28 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     }
 
     return outputMap;
+  }
+
+  protected static ResourceBundle getResourceBundle(String language) {
+
+    ResourceBundle bundle;
+
+    if (language == null) {
+      bundle = I18n.getBundle();
+    } else if (language.equals("fr")) {
+      bundle = I18n.getBundle(Locale.FRANCE);
+    } else {
+      bundle = I18n.getBundle(Locale.ENGLISH);
+    }
+
+    return bundle;
+  }
+
+  private Object getTranslatedValue(Object value) {
+    value = resourceBundle.getString("value:" + value.toString());
+    value = value.toString().startsWith("value:") ? value.toString().replace("value:", "") : value;
+
+    return value;
   }
 
   protected void setPictureRowShiftMap(String sheetName, String sheetType, int rowThreshold) {
@@ -797,7 +853,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       int index,
       int totalRecord,
       boolean hide,
-      String operationString)
+      String operationString,
+      boolean translate)
       throws AxelorException, ScriptException {
     boolean isFirstIteration = true;
     ImmutablePair<Property, Object> pair;
@@ -850,6 +907,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
         if (StringUtils.notEmpty(operationString)) {
           keyValue = calculateFromString(keyValue.toString().concat(operationString));
+        }
+
+        if (translate) {
+          keyValue = getTranslatedValue(keyValue);
         }
         newMap.replace(KEY_VALUE, keyValue);
 
@@ -962,7 +1023,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       Object object,
       String propertyName,
       int totalRecord,
-      String operationString)
+      String operationString,
+      boolean translate)
       throws AxelorException, ScriptException {
     ImmutablePair<Property, Object> pair = this.findField(mapper, object, propertyName);
 
@@ -998,6 +1060,9 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       outputValue = calculateFromString(outputValue.toString().concat(operationString));
     }
 
+    if (translate) {
+      outputValue = getTranslatedValue(outputValue);
+    }
     m.replace(KEY_VALUE, outputValue);
 
     if (totalRecord > 0) this.shiftRows(m, false, totalRecord);
