@@ -1536,6 +1536,11 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     Context scriptContext = new Context(Mapper.toMap(bean), bean.getClass());
     ScriptHelper scriptHelper = new GroovyScriptHelper(scriptContext);
 
+    // replace all single quotes to groovy compatible quotes
+    if (condition.contains("‘") || condition.contains("’")) {
+      condition = condition.replaceAll("‘", "'").replaceAll("’", "'");
+    }
+
     return scriptHelper.eval(condition);
   }
 }
