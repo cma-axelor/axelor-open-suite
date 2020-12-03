@@ -21,12 +21,11 @@
             <field name="formatSelect"/>
             <field name="language" grid-view="language-grid" form-view="language-form"/>
             <field name="displayTypeSelect" hideIf="inputTypeSelect == 2 &amp;&amp; formatSelect != 'PDF'"/>           
+            <field name="company" grid-view="company-grid" form-view="company-form"/>
             
             <panel name="stringTemplateTypePanel" showIf="inputTypeSelect == 1" colSpan="12">
-            	<field name="metaModelDefaultPath"/>
-            	<field name="company" grid-view="company-grid" form-view="company-form"/>
-            	<field name="hidePrintSettings" widget="boolean-switch"/>
-            
+            	<field name="metaModelDefaultPath"/>            	
+            	<field name="hidePrintSettings" widget="boolean-switch"/>            
             	<field name="documentName"/>
             	<field name="metaFileField" help="Name of the field in the model where to save the file"/>
             	<field name="isEditable"/>
