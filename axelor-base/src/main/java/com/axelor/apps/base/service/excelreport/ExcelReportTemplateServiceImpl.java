@@ -145,7 +145,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     maxRows = Beans.get(AppBaseService.class).getAppBase().getMaxRows();
     maxColumns = Beans.get(AppBaseService.class).getAppBase().getMaxColumns();
     print = Beans.get(PrintTemplateService.class).generatePrint(objectIds.get(0), printTemplate);
-    resourceBundle = getResourceBundle(printTemplate.getLanguage().getCode());
+    resourceBundle =
+        ObjectUtils.notEmpty(printTemplate.getLanguage())
+            ? getResourceBundle(printTemplate.getLanguage().getCode())
+            : getResourceBundle(null);
 
     int scale = Beans.get(AppBaseService.class).getAppBase().getBigdecimalScale();
     if (scale != 0) BIGDECIMAL_SCALE = scale;
