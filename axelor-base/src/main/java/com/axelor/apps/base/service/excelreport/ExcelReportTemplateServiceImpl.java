@@ -622,7 +622,14 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       String value = cellValue == null ? null : cellValue.toString();
 
       // check for translation function
-      if (value.startsWith("_t(value:")) {
+      if (value.trim().startsWith("_t(value:")
+          && (value.trim().contains("hide") || value.trim().contains("show"))) {
+        translate = true;
+        value =
+            org.apache.commons.lang3.StringUtils.replaceOnce(
+                value.trim().replace("_t(value:", "").trim(), ")", "");
+
+      } else if (value.trim().startsWith("_t(value:")) {
         translate = true;
         value = org.apache.commons.lang3.StringUtils.chop(value.trim().replace("_t(value:", ""));
       } else if (value.trim().startsWith("_t('") || value.trim().startsWith("_t(‘")) {
@@ -645,7 +652,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
           if (!value.contains("$formula")) {
 
             // Check for groovy conditional text
-            if (propertyName.contains(":")) {
+            if (propertyName.contains(":")
+                && (propertyName.contains("hide") || propertyName.contains("show"))) {
               hide = getConditionResult(propertyName, object);
               propertyName = propertyName.substring(0, propertyName.indexOf(":")).trim();
             } else if (propertyName.startsWith("if") && propertyName.contains("->")) {
@@ -654,6 +662,13 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
               propertyName = valueOperationPair.getLeft();
               operationString = valueOperationPair.getRight();
+            }
+
+            if (propertyName.contains("_t(value:")) {
+              translate = true;
+              propertyName =
+                  org.apache.commons.lang3.StringUtils.chop(
+                      propertyName.trim().replace("_t(value:", ""));
             }
 
             propertyName = propertyName.substring(1);
@@ -728,21 +743,9 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
           }
           object = mainObject;
         } else {
-          // hide/show label
-          if (value.contains(" : ") && (value.contains("hide") || value.contains("show"))) {
-            if (getConditionResult(value, object)) {
-              value = "";
-            } else {
-              value = value.substring(0, value.lastIndexOf(" : ")).trim();
-            }
-          } else if (value.startsWith("if") && value.contains("->")) { // if else condition
-            value = getIfConditionResult(value, object).getLeft();
-          }
 
-          // translate
-          if (translate) {
-            value = resourceBundle.getString(value);
-          }
+          value = getLabel(value, object, translate);
+
           m.replace(KEY_VALUE, value);
           this.shiftRows(m, false, totalRecord);
         }
@@ -753,6 +756,42 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     }
 
     return outputMap;
+  }
+
+  private String getLabel(String value, Object bean, boolean translate)
+      throws IOException, AxelorException {
+    if (value.contains(" : ") && (value.contains("hide") || value.contains("show"))) {
+      if (getConditionResult(value, bean)) {
+        value = "";
+      } else {
+        value = value.substring(0, value.lastIndexOf(" : ")).trim();
+
+        if (isTranslationFunction(value)) {
+
+          value = getTranslatedValue(value).toString();
+        }
+      }
+    } else if (value.startsWith("if") && value.contains("->")) { // if else condition
+      value = getIfConditionResult(value, bean).getLeft();
+      if (isTranslationFunction(value)) {
+        value = getTranslatedValue(value).toString();
+      }
+    }
+    if (translate) {
+      value = resourceBundle.getString(value);
+    }
+
+    return value;
+  }
+
+  private boolean isTranslationFunction(String value) {
+    boolean isTranslation = false;
+    if (value.trim().startsWith("_t('")
+        || value.trim().startsWith("_t(‘")
+        || value.trim().startsWith("_t(value:")) {
+      isTranslation = true;
+    }
+    return isTranslation;
   }
 
   protected static ResourceBundle getResourceBundle(String language) {
@@ -771,9 +810,27 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   }
 
   private Object getTranslatedValue(Object value) {
-    value = resourceBundle.getString("value:" + value.toString());
-    value = value.toString().startsWith("value:") ? value.toString().replace("value:", "") : value;
 
+    if (value.toString().trim().startsWith("_t(value:")) {
+      value = resourceBundle.getString("value:" + value.toString());
+      value =
+          value.toString().startsWith("value:") ? value.toString().replace("value:", "") : value;
+    } else if (value.toString().trim().startsWith("_t('")
+        || value.toString().trim().startsWith("_t(‘")) {
+      value =
+          value
+              .toString()
+              .trim()
+              .replace("_t('", "")
+              .replace("_t(‘", "")
+              .replace("')", "")
+              .replace("’)", "");
+      value = resourceBundle.getString(value.toString());
+    } else {
+      value = resourceBundle.getString("value:" + value.toString());
+      value =
+          value.toString().startsWith("value:") ? value.toString().replace("value:", "") : value;
+    }
     return value;
   }
 
@@ -1521,7 +1578,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       value = resultValue;
     }
 
-    return new ImmutablePair<String, String>(value, operation);
+    return new ImmutablePair<String, String>(value, operation.trim());
   }
 
   // calculates arithmetic operations using javascript engine
