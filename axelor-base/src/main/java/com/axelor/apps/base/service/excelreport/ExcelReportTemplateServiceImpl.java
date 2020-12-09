@@ -129,7 +129,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   private XSSFSheet originSheet;
   private Map<String, ImmutablePair<XSSFSheet, XSSFSheet>> headerFooterSheetMap = new HashMap<>();
   private Print print = null;
-  private List<Integer> removeCellKeyList = new ArrayList<Integer>();
+  private List<Integer> removeCellKeyList = new ArrayList<>();
   private ResourceBundle resourceBundle;
 
   @Override
@@ -431,8 +431,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     List<ImmutablePair<Integer, Integer>> removeCellRowColumnPair = new ArrayList<>();
     List<Integer> finalRemoveKeyPairList = new ArrayList<>();
     // new input map
-    Map<Integer, Map<String, Object>> newInputMap =
-        new HashMap<Integer, Map<String, Object>>(inputMap);
+    Map<Integer, Map<String, Object>> newInputMap = new HashMap<>(inputMap);
 
     // get location of all cells to hide
     for (Integer key : removeCellKeyList) {
@@ -662,6 +661,11 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
               propertyName = valueOperationPair.getLeft();
               operationString = valueOperationPair.getRight();
+            } else if (propertyName.contains(":") && propertyName.startsWith("$eval:")) {
+              m.replace(
+                  KEY_VALUE,
+                  validateCondition(propertyName.substring(propertyName.indexOf(":") + 1), object));
+              continue;
             }
 
             if (propertyName.contains("_t(value:")) {
@@ -1578,7 +1582,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       value = resultValue;
     }
 
-    return new ImmutablePair<String, String>(value, operation.trim());
+    return new ImmutablePair<>(value, operation.trim());
   }
 
   // calculates arithmetic operations using javascript engine
@@ -1595,6 +1599,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   protected Object validateCondition(String condition, Object bean) {
     Context scriptContext = new Context(Mapper.toMap(bean), bean.getClass());
     ScriptHelper scriptHelper = new GroovyScriptHelper(scriptContext);
+
+    if (ObjectUtils.isEmpty(condition)) {
+      return "";
+    }
 
     // replace all single quotes to groovy compatible quotes
     if (condition.contains("‘") || condition.contains("’")) {
