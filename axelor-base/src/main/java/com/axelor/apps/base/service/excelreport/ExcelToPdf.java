@@ -607,8 +607,9 @@ public class ExcelToPdf {
 
   private void setCellBackGround(XSSFCellStyle cellStyle, PdfPCell pdfPCell) {
 
-    if (cellStyle.getFillForegroundColorColor() != null) {
-      String argbCode = cellStyle.getFillForegroundColorColor().getARGBHex();
+    XSSFColor color = cellStyle.getFillForegroundColorColor();
+    if (ObjectUtils.notEmpty(color) && ObjectUtils.notEmpty(color.getARGBHex())) {
+      String argbCode = color.getARGBHex();
       String hexColor = "#" + argbCode.substring(2);
       pdfPCell.setBackgroundColor(getBaseColor(hexColor));
     }

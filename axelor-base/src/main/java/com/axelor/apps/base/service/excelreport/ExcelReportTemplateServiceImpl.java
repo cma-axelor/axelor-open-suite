@@ -85,6 +85,7 @@ import org.apache.poi.ss.usermodel.Picture;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFDrawing;
 import org.apache.poi.xssf.usermodel.XSSFPicture;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
@@ -1221,8 +1222,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       if (c == null) {
         c = r.createCell(cellColumn, CellType.STRING);
       }
-      CellStyle newCellStyle = sheet.getWorkbook().createCellStyle();
-      CellStyle oldCellStyle = (CellStyle) m.get(KEY_CELL_STYLE);
+      XSSFCellStyle newCellStyle = sheet.getWorkbook().createCellStyle();
+      XSSFCellStyle oldCellStyle = (XSSFCellStyle) m.get(KEY_CELL_STYLE);
 
       Object cellValue = m.get(KEY_VALUE);
       if (cellValue.getClass().equals(XSSFRichTextString.class)) {
