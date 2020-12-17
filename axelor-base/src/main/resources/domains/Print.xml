@@ -33,6 +33,7 @@
 		<string name="logoWidth" title="Company Logo Width"/>
 		<decimal name="headerHeight" title="Header height"/>
   		<decimal name="footerHeight" title="Footer height"/>
+  		<one-to-many name="reportQueryBuilderList" title="Report query builders" ref="com.axelor.apps.base.db.ReportQueryBuilder"/>
 		        
         <extra-code><![CDATA[
         

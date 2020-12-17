@@ -54,8 +54,9 @@
             </panel>
 
             <panel name="excelTypePanel" showIf="inputTypeSelect == 2" colSpan="12">
-            	<field name="excelTemplate" widget="binary-link"/>
-            	<field name="dataSizeReduction" showIf="formatSelect == 'PDF'"/>    	
+            	<field name="excelTemplate" widget="binary-link" colSpan="4"/>           	
+            	<field name="dataSizeReduction" showIf="formatSelect == 'PDF'" colSpan="4"/>
+            	<field name="reportQueryBuilderList"/>	
             </panel>
         </panel>
     </form>

@@ -19,6 +19,7 @@ package com.axelor.apps.base.service.excelreport;
 
 import com.axelor.apps.base.db.Print;
 import com.axelor.apps.base.db.PrintTemplate;
+import com.axelor.apps.base.db.ReportQueryBuilder;
 import com.axelor.apps.base.exceptions.IExceptionMessage;
 import com.axelor.apps.base.service.PrintTemplateService;
 import com.axelor.apps.base.service.app.AppBaseService;
@@ -55,6 +56,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -92,6 +94,7 @@ import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.apache.poi.xssf.usermodel.XSSFShape;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.hibernate.transform.BasicTransformerAdapter;
 
 public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateService {
 
@@ -132,6 +135,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   private Print print = null;
   private List<Integer> removeCellKeyList = new ArrayList<>();
   private ResourceBundle resourceBundle;
+  private List<ReportQueryBuilder> reportQueryBuilderList;
 
   @Override
   public File createReport(List<Long> objectIds, PrintTemplate printTemplate) throws Exception {
@@ -150,6 +154,9 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
         ObjectUtils.notEmpty(printTemplate.getLanguage())
             ? getResourceBundle(printTemplate.getLanguage().getCode())
             : getResourceBundle(null);
+    if (ObjectUtils.notEmpty(printTemplate.getReportQueryBuilderList())) {
+      reportQueryBuilderList = new ArrayList<>(printTemplate.getReportQueryBuilderList());
+    }
 
     int scale = Beans.get(AppBaseService.class).getAppBase().getBigdecimalScale();
     if (scale != 0) BIGDECIMAL_SCALE = scale;
@@ -159,10 +166,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     XSSFWorkbook wb = new XSSFWorkbook(new FileInputStream(file));
     Map<Integer, Map<String, Object>> inputMap = this.getInputMap(wb, TEMPLATE_SHEET_TITLE);
     this.getHeadersAndFooters(wb);
-    wb.close();
 
     XSSFWorkbook newWb =
-        this.createXSSFWorkbook(inputMap, result, this.getMapper(modelFullName), formatType);
+        this.createXSSFWorkbook(inputMap, result, this.getMapper(modelFullName), formatType, wb);
+    wb.close();
     File outputFile = MetaFiles.createTempFile(I18n.get(modelName), ".xlsx").toFile();
     FileOutputStream outputStream = new FileOutputStream(outputFile.getAbsolutePath());
     newWb.write(outputStream);
@@ -363,7 +370,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       Map<Integer, Map<String, Object>> inputMap,
       List<Model> data,
       Mapper mapper,
-      String formatType)
+      String formatType,
+      XSSFWorkbook wb)
       throws AxelorException, ScriptException, IOException {
     XSSFWorkbook newWb = new XSSFWorkbook();
 
@@ -381,10 +389,11 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     for (Model dataItem : data) {
       String sheetName = String.format("%s %s", modelName, i++);
       headerOutputMap =
-          this.getOutputMap(headerInputMap, mapper, dataItem, HEADER_SHEET_TITLE, sheetName);
+          this.getOutputMap(headerInputMap, mapper, dataItem, HEADER_SHEET_TITLE, sheetName, wb);
       footerOutputMap =
-          this.getOutputMap(footerInputMap, mapper, dataItem, FOOTER_SHEET_TITLE, sheetName);
-      outputMap = this.getOutputMap(inputMap, mapper, dataItem, TEMPLATE_SHEET_TITLE, sheetName);
+          this.getOutputMap(footerInputMap, mapper, dataItem, FOOTER_SHEET_TITLE, sheetName, wb);
+      outputMap =
+          this.getOutputMap(inputMap, mapper, dataItem, TEMPLATE_SHEET_TITLE, sheetName, wb);
 
       // hide collections if any and recalculate
       if (ObjectUtils.notEmpty(removeCellKeyList)) {
@@ -394,7 +403,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
                 mapper,
                 dataItem,
                 TEMPLATE_SHEET_TITLE,
-                sheetName);
+                sheetName,
+                wb);
       }
 
       XSSFSheet newSheet = newWb.createSheet(sheetName);
@@ -582,7 +592,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       Mapper mapper,
       Object object,
       String sheetType,
-      String sheetName)
+      String sheetName,
+      XSSFWorkbook wb)
       throws AxelorException, IOException, ScriptException {
 
     mergedCellsRangeAddressSetPerSheet = new HashSet<>();
@@ -679,10 +690,66 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
             propertyName = propertyName.substring(1);
             property = this.getProperty(mapper, propertyName);
 
-            if (ObjectUtils.isEmpty(property))
-              throw new AxelorException(
-                  TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-                  IExceptionMessage.NO_SUCH_FIELD + propertyName);
+            if (ObjectUtils.isEmpty(property)) {
+              if (!propertyName.contains(".")) {
+                m.replace(KEY_VALUE, "");
+                m.replace(KEY_CELL_STYLE, wb.createCellStyle());
+                continue;
+              }
+              String reportQuery = getReportQueryBuilderQuery(propertyName);
+
+              if (ObjectUtils.notEmpty(reportQuery)) {
+                Query query = JPA.em().createQuery(reportQuery);
+
+                query
+                    .unwrap(org.hibernate.query.Query.class)
+                    .setResultTransformer(new DataSetTransformer());
+                List<Object> collection = query.getResultList();
+                String key = propertyName.substring(propertyName.indexOf(".") + 1);
+
+                // throw error if no such field found in report query
+                if (ObjectUtils.isEmpty(collection)
+                    || ((ObjectUtils.notEmpty(collection)
+                        && !((LinkedHashMap<String, String>) collection.get(0))
+                            .containsKey(key)))) {
+                  throw new AxelorException(
+                      TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
+                      "No records found for : " + propertyName);
+                }
+
+                Map<String, Object> entryValueMap = new HashMap<>(entry.getValue());
+
+                if (collectionEntryRow != (int) entryValueMap.get(KEY_ROW)) {
+                  collectionEntryRow = (int) entryValueMap.get(KEY_ROW);
+                }
+
+                rowNumber = (Integer) entryValueMap.get(KEY_ROW);
+
+                ImmutablePair<Integer, Map<Integer, Map<String, Object>>> collectionEntryPair;
+                this.setMergedCellsRangeAddressSetPerSheet(entryValueMap, collection, totalRecord);
+
+                collectionEntryPair =
+                    this.getReportQueryBuilderCollectionEntry(
+                        outputMap,
+                        entryValueMap,
+                        collection,
+                        entry,
+                        key,
+                        index,
+                        totalRecord,
+                        hide,
+                        operationString,
+                        translate);
+                outputMap = collectionEntryPair.getRight();
+                totalRecord = collectionEntryPair.getLeft();
+
+                continue;
+              } else {
+                throw new AxelorException(
+                    TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
+                    IExceptionMessage.NO_SUCH_FIELD + propertyName);
+              }
+            }
 
             if (!property.isCollection()) {
 
@@ -761,6 +828,31 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     }
 
     return outputMap;
+  }
+
+  @SuppressWarnings("serial")
+  private static final class DataSetTransformer extends BasicTransformerAdapter {
+
+    @Override
+    public Object transformTuple(Object[] tuple, String[] aliases) {
+      Map<String, Object> result = new LinkedHashMap<>(tuple.length);
+      for (int i = 0; i < tuple.length; ++i) {
+        String alias = aliases[i];
+        if (alias != null) {
+          result.put(alias, tuple[i]);
+        }
+      }
+      return result;
+    }
+  }
+
+  private String getReportQueryBuilderQuery(String propertyName) {
+    for (ReportQueryBuilder rqb : reportQueryBuilderList) {
+      if (rqb.getVar().equals(propertyName.substring(0, propertyName.indexOf(".")))) {
+        return rqb.getQueryText();
+      }
+    }
+    return null;
   }
 
   private String getLabel(String value, Object bean, boolean translate)
@@ -968,6 +1060,80 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
           keyValue = ((BigDecimal) property.get(ob)).setScale(BIGDECIMAL_SCALE).toString();
         } else {
           keyValue = property.get(ob).toString();
+        }
+
+        if (StringUtils.notEmpty(operationString)) {
+          keyValue = calculateFromString(keyValue.toString().concat(operationString));
+        }
+
+        if (translate) {
+          keyValue = getTranslatedValue(keyValue);
+        }
+        newMap.replace(KEY_VALUE, keyValue);
+
+        while (outputMap.containsKey(index)) index++;
+        if (isFirstIteration) {
+          index = entry.getKey();
+          isFirstIteration = false;
+        }
+
+        outputMap.put(index, newMap);
+        index++;
+        rowOffset = rowOffset + localMergeOffset + 1;
+        if (localMergeOffset == 0 && mergeOffset != 0) localMergeOffset = mergeOffset;
+      }
+      if (record == 0) record = rowOffset - 1;
+    } else {
+      newEntryValueMap.replace(KEY_VALUE, "");
+      outputMap.put(entry.getKey(), newEntryValueMap);
+    }
+    if (!nextRowCheckActive) nextRowCheckActive = true;
+
+    return ImmutablePair.of(totalRecord, outputMap);
+  }
+
+  protected ImmutablePair<Integer, Map<Integer, Map<String, Object>>>
+      getReportQueryBuilderCollectionEntry(
+          Map<Integer, Map<String, Object>> outputMap,
+          Map<String, Object> entryValueMap,
+          Collection<Object> collection,
+          Map.Entry<Integer, Map<String, Object>> entry,
+          String key,
+          int index,
+          int totalRecord,
+          boolean hide,
+          String operationString,
+          boolean translate)
+          throws ScriptException {
+
+    boolean isFirstIteration = true;
+
+    if (hide) {
+      removeCellKeyList.add(entry.getKey());
+    }
+
+    Map<String, Object> newEntryValueMap = new HashMap<>(entryValueMap);
+    this.shiftRows(newEntryValueMap, false, totalRecord);
+    rowNumber = (int) newEntryValueMap.get(KEY_ROW);
+
+    int localMergeOffset = 0;
+    int rowOffset = 0;
+    if (!collection.isEmpty()) {
+
+      for (Object ob : collection) {
+        Map<String, Object> newMap = new HashMap<>();
+
+        newMap.putAll(newEntryValueMap);
+        newMap.replace(KEY_ROW, rowNumber + rowOffset + localMergeOffset);
+
+        LinkedHashMap<String, String> recordMap = (LinkedHashMap<String, String>) ob;
+        Object value = recordMap.get(key);
+        Object keyValue = "";
+
+        if (ObjectUtils.isEmpty(value) || hide) {
+          keyValue = "";
+        } else {
+          keyValue = value;
         }
 
         if (StringUtils.notEmpty(operationString)) {
