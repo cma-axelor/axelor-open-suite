@@ -414,4 +414,5 @@ public interface IExceptionMessage {
   public static final String PRINT_TEMPLATE_LINE_TEST_REFRESH = /*$$(*/
       "Refresh page to reflect changes in selection" /*)*/;
   public static final String NO_SUCH_FIELD = /*$$(*/ "No such field like : " /*)*/;
+  public static final String FONT_NOT_SUPPORTED = /*$$(*/ "Font not supported : " /*)*/;
 }

@@ -19,9 +19,12 @@ package com.axelor.apps.base.service.excelreport;
 
 import com.axelor.app.AppSettings;
 import com.axelor.apps.base.db.Print;
+import com.axelor.apps.base.exceptions.IExceptionMessage;
 import com.axelor.apps.base.service.PrintService;
 import com.axelor.common.ObjectUtils;
 import com.axelor.common.StringUtils;
+import com.axelor.exception.AxelorException;
+import com.axelor.exception.db.repo.TraceBackRepository;
 import com.axelor.exception.service.TraceBackService;
 import com.axelor.inject.Beans;
 import com.axelor.meta.MetaFiles;
@@ -286,13 +289,15 @@ public class ExcelToPdf {
     return pdfFile;
   }
 
-  private void sheetToPdf(Document pdfDoc, XSSFSheet sheet) throws DocumentException, IOException {
+  private void sheetToPdf(Document pdfDoc, XSSFSheet sheet)
+      throws DocumentException, IOException, AxelorException {
 
     PdfPTable pdfPTable = this.createPdfPTable(sheet);
     pdfDoc.add(pdfPTable);
   }
 
-  protected PdfPTable createPdfPTable(XSSFSheet sheet) throws DocumentException, IOException {
+  protected PdfPTable createPdfPTable(XSSFSheet sheet)
+      throws DocumentException, IOException, AxelorException {
 
     if (ObjectUtils.isEmpty(sheet)) return null;
 
@@ -346,7 +351,7 @@ public class ExcelToPdf {
   }
 
   private PdfPCell createPdfCell(XSSFRow row, XSSFCell cell, PdfPCell pdfPCell)
-      throws DocumentException, IOException {
+      throws DocumentException, IOException, AxelorException {
     Font font = getFontStyle(cell.getCellStyle());
 
     // font reduction
@@ -394,7 +399,7 @@ public class ExcelToPdf {
     pdfPCell.setNoWrap(!cell.getCellStyle().getWrapText());
     pdfPCell.setHorizontalAlignment(cell.getCellStyle().getAlignment().ordinal() - 1);
     pdfPCell.setVerticalAlignment(cell.getCellStyle().getVerticalAlignment().ordinal());
-    setCellBackGround(cell.getCellStyle(), pdfPCell);
+    setCellBackGround(cell.getCellStyle(), pdfPCell, cell);
     setCellBorder(pdfPCell, cell);
 
     return pdfPCell;
@@ -513,13 +518,16 @@ public class ExcelToPdf {
     return maxRowColumn;
   }
 
-  private Font getFontStyle(XSSFCellStyle cellStyle) {
+  private Font getFontStyle(XSSFCellStyle cellStyle) throws AxelorException {
 
     XSSFFont xssfFont = cellStyle.getFont();
     String fontFamily = FontFactory.HELVETICA;
-    if (FontFactory.isRegistered(xssfFont.getFontName())) {
-      fontFamily = xssfFont.getFontName();
+    if (!FontFactory.isRegistered(xssfFont.getFontName())) {
+      throw new AxelorException(
+          TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
+          IExceptionMessage.FONT_NOT_SUPPORTED + xssfFont.getFontName());
     }
+    fontFamily = xssfFont.getFontName();
     Font font = FontFactory.getFont(fontFamily);
     int fontStyle = Font.NORMAL;
 
@@ -605,9 +613,11 @@ public class ExcelToPdf {
     return getBaseColor(hexColor);
   }
 
-  private void setCellBackGround(XSSFCellStyle cellStyle, PdfPCell pdfPCell) {
+  private void setCellBackGround(XSSFCellStyle cellStyle, PdfPCell pdfPCell, XSSFCell cell)
+      throws AxelorException {
 
     XSSFColor color = cellStyle.getFillForegroundColorColor();
+
     if (ObjectUtils.notEmpty(color) && ObjectUtils.notEmpty(color.getARGBHex())) {
       String argbCode = color.getARGBHex();
       String hexColor = "#" + argbCode.substring(2);

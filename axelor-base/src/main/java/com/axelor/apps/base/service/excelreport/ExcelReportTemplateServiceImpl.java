@@ -75,8 +75,6 @@ import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.apache.poi.ss.usermodel.BorderStyle;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.ClientAnchor;
 import org.apache.poi.ss.usermodel.CreationHelper;
@@ -84,13 +82,14 @@ import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Picture;
-import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFDrawing;
 import org.apache.poi.xssf.usermodel.XSSFPicture;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
+import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFShape;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -207,7 +206,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
   @SuppressWarnings("resource")
   protected Map<Integer, Map<String, Object>> getInputMap(XSSFWorkbook wb, String sheetName)
-      throws IOException {
+      throws IOException, AxelorException {
     Map<Integer, Map<String, Object>> map = new HashMap<>();
 
     int lastColumn = 0;
@@ -238,7 +237,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       if (print.getIsFooterUnderLine()) {
         font.setUnderline(Font.U_SINGLE);
       }
-      CellStyle cellStyle = wb.createCellStyle();
+      XSSFCellStyle cellStyle = wb.createCellStyle();
       cellStyle.setFont(font);
 
       Map<String, Object> dataMap = new HashMap<>();
@@ -271,10 +270,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     int n = 0;
 
     for (int i = 0; i < maxRows; i++) {
-      Row row = sheet.getRow(i);
+      XSSFRow row = sheet.getRow(i);
       if (ObjectUtils.notEmpty(row)) {
         for (int j = 0; j < maxColumns; j++) {
-          Cell cell = row.getCell(j);
+          XSSFCell cell = row.getCell(j);
           if (ObjectUtils.isEmpty(cell) || isCellEmpty(cell)) {
             continue;
           }
@@ -356,13 +355,14 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return new Dimension(width / 2f, height);
   }
 
-  protected Map<String, Object> getDataMap(Cell cell) {
+  protected Map<String, Object> getDataMap(XSSFCell cell) throws AxelorException {
     Map<String, Object> map = new HashMap<>();
     Object cellValue = getCellValue(cell);
     map.put(KEY_ROW, cell.getRowIndex());
     map.put(KEY_COLUMN, cell.getColumnIndex());
     map.put(KEY_VALUE, cellValue);
     map.put(KEY_CELL_STYLE, cell.getCellStyle());
+
     return map;
   }
 
@@ -1380,11 +1380,11 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       int cellRow = (Integer) m.get(KEY_ROW) + offset;
       int cellColumn = (Integer) m.get(KEY_COLUMN);
 
-      Row r = sheet.getRow(cellRow);
+      XSSFRow r = sheet.getRow(cellRow);
       if (r == null) {
         r = sheet.createRow(cellRow);
       }
-      Cell c = r.getCell(cellColumn);
+      XSSFCell c = r.getCell(cellColumn);
       if (c == null) {
         c = r.createCell(cellColumn, CellType.STRING);
       }
@@ -1410,7 +1410,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   }
 
   protected void fillMergedRegionCells(XSSFSheet currentSheet) {
-    CellStyle cellStyle;
+    XSSFCellStyle cellStyle;
     int firstRow;
     int lastRow;
     int firstColumn;
@@ -1592,12 +1592,12 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return headerLines + 1;
   }
 
-  protected void getHeadersAndFooters(XSSFWorkbook wb) throws IOException {
+  protected void getHeadersAndFooters(XSSFWorkbook wb) throws IOException, AxelorException {
     headerInputMap = this.getInputMap(wb, HEADER_SHEET_TITLE);
     footerInputMap = this.getInputMap(wb, FOOTER_SHEET_TITLE);
   }
 
-  protected Object getCellValue(Cell cell) {
+  protected Object getCellValue(XSSFCell cell) {
     Object value = null;
     switch (cell.getCellType()) {
       case BOOLEAN:
@@ -1624,7 +1624,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return value;
   }
 
-  protected boolean isCellEmpty(Cell cell) {
+  protected boolean isCellEmpty(XSSFCell cell) {
     BorderStyle borderStyleNone = BorderStyle.NONE;
 
     boolean isBlank = cell.getCellType().equals(CellType.BLANK);
