@@ -10,8 +10,9 @@
 
     <form name="report-query-builder-form" model="com.axelor.apps.base.db.ReportQueryBuilder" title="Report query builder">
         <panel name="mainPanel">
-            <field name="var"/>
-            <field name="queryText" widget="text"/>
+            <field name="var" required="true"/>
+            <field name="queryText" widget="text" required="true"/>
+            <field name="reportQueryBuilderParamsList" colSpan="12" form-view="report-query-builder-params-form" grid-view="report-query-builder-params-grid"/>       
         </panel>       
     </form>
 

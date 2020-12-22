@@ -20,6 +20,7 @@ package com.axelor.apps.base.service.excelreport;
 import com.axelor.apps.base.db.Print;
 import com.axelor.apps.base.db.PrintTemplate;
 import com.axelor.apps.base.db.ReportQueryBuilder;
+import com.axelor.apps.base.db.ReportQueryBuilderParams;
 import com.axelor.apps.base.exceptions.IExceptionMessage;
 import com.axelor.apps.base.service.PrintTemplateService;
 import com.axelor.apps.base.service.app.AppBaseService;
@@ -29,6 +30,7 @@ import com.axelor.common.StringUtils;
 import com.axelor.db.JPA;
 import com.axelor.db.JpaRepository;
 import com.axelor.db.Model;
+import com.axelor.db.QueryBinder;
 import com.axelor.db.mapper.Mapper;
 import com.axelor.db.mapper.Property;
 import com.axelor.exception.AxelorException;
@@ -691,19 +693,22 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
             property = this.getProperty(mapper, propertyName);
 
             if (ObjectUtils.isEmpty(property)) {
-              if (!propertyName.contains(".")) {
+              if (!propertyName.contains(".") || ObjectUtils.isEmpty(reportQueryBuilderList)) {
                 m.replace(KEY_VALUE, "");
                 m.replace(KEY_CELL_STYLE, wb.createCellStyle());
                 continue;
               }
-              String reportQuery = getReportQueryBuilderQuery(propertyName);
+              Map<String, Map<String, Object>> reportQuery =
+                  getReportQueryBuilderQuery(propertyName, object);
 
               if (ObjectUtils.notEmpty(reportQuery)) {
-                Query query = JPA.em().createQuery(reportQuery);
-
+                String queryString = reportQuery.keySet().stream().findFirst().get();
+                Map<String, Object> context = reportQuery.get(queryString);
+                Query query = JPA.em().createQuery(queryString);
                 query
                     .unwrap(org.hibernate.query.Query.class)
                     .setResultTransformer(new DataSetTransformer());
+                QueryBinder.of(query).bind(context);
                 List<Object> collection = query.getResultList();
                 String key = propertyName.substring(propertyName.indexOf(".") + 1);
 
@@ -846,13 +851,32 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     }
   }
 
-  private String getReportQueryBuilderQuery(String propertyName) {
+  private Map<String, Map<String, Object>> getReportQueryBuilderQuery(
+      String propertyName, Object bean) {
+    String queryString = null;
+    Map<String, Map<String, Object>> query = new HashMap<>();
     for (ReportQueryBuilder rqb : reportQueryBuilderList) {
       if (rqb.getVar().equals(propertyName.substring(0, propertyName.indexOf(".")))) {
-        return rqb.getQueryText();
+        queryString = rqb.getQueryText();
+        Map<String, Object> context = new HashMap<>();
+        if (ObjectUtils.notEmpty(rqb.getReportQueryBuilderParamsList())) {
+
+          for (ReportQueryBuilderParams params : rqb.getReportQueryBuilderParamsList()) {
+            String expression = params.getValue();
+            Object value = null;
+            if (expression.trim().startsWith("eval:")) {
+              value = this.validateCondition(expression, bean).toString();
+            } else {
+              value = expression;
+            }
+            context.put(params.getName(), value);
+          }
+        }
+        query.put(queryString, context);
+        break;
       }
     }
-    return null;
+    return query;
   }
 
   private String getLabel(String value, Object bean, boolean translate)

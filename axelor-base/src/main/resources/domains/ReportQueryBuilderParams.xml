@@ -5,11 +5,10 @@
   
   <module name="base" package="com.axelor.apps.base.db"/>
 
-  <entity name="ReportQueryBuilder">
+  <entity name="ReportQueryBuilderParams">
 
-	<string name="var" title="Variable"/>
-	<string name="queryText" title="Query" large="true"/>
-	<one-to-many name="reportQueryBuilderParamsList" title="Report query builder params" ref="com.axelor.apps.base.db.ReportQueryBuilderParams"/>
+	<string name="name" title="Name"/>
+	<string name="value" title="Value" large="true"/>
 	
   </entity>
 
