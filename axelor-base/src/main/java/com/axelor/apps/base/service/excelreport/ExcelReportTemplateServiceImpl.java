@@ -694,8 +694,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
             if (ObjectUtils.isEmpty(property)) {
               if (!propertyName.contains(".") || ObjectUtils.isEmpty(reportQueryBuilderList)) {
+                XSSFCellStyle newCellStyle = wb.createCellStyle();
+                newCellStyle.setFont(((XSSFCellStyle) m.get(KEY_CELL_STYLE)).getFont());
                 m.replace(KEY_VALUE, "");
-                m.replace(KEY_CELL_STYLE, wb.createCellStyle());
+                m.replace(KEY_CELL_STYLE, newCellStyle);
                 continue;
               }
               Map<String, Map<String, Object>> reportQuery =
@@ -1182,6 +1184,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       }
       if (record == 0) record = rowOffset - 1;
     } else {
+
       newEntryValueMap.replace(KEY_VALUE, "");
       outputMap.put(entry.getKey(), newEntryValueMap);
     }
