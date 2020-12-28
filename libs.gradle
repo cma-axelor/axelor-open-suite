@@ -53,3 +53,8 @@ libs.google_api_services_people = dependencies.create('com.google.apis:google-ap
 }
 
 libs.mockito = 'org.mockito:mockito-core:3.3.3'
+
+libs.poi = 'org.apache.poi:poi:4.1.1'
+libs.poi_ooxml = 'org.apache.poi:poi-ooxml:4.1.1'
+libs.poi_scratchpad = 'org.apache.poi:poi-scratchpad:4.1.1'
+libs.jericho_html = 'net.htmlparser.jericho:jericho-html:3.4'
