@@ -22,6 +22,7 @@ import com.axelor.apps.base.db.Print;
 import com.axelor.apps.base.exceptions.IExceptionMessage;
 import com.axelor.apps.base.service.PrintService;
 import com.axelor.common.ObjectUtils;
+import com.axelor.common.ResourceUtils;
 import com.axelor.common.StringUtils;
 import com.axelor.exception.AxelorException;
 import com.axelor.exception.db.repo.TraceBackRepository;
@@ -56,7 +57,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.lang.invoke.MethodHandles;
 import java.math.BigDecimal;
+import java.net.URL;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -79,8 +84,12 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xssf.usermodel.extensions.XSSFCellBorder.BorderSide;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ExcelToPdf {
+
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   private static boolean potrait = true;
   private List<CellRangeAddress> mergedCellsList;
@@ -93,6 +102,19 @@ public class ExcelToPdf {
   private boolean pictureCell = false;
   private List<Image> imageList;
   private float dataSizeReductionPercentage = 100; // value should be between 0 to 100
+  private Map<String, String> fontMap;
+
+  public ExcelToPdf() {
+    fontMap = new HashMap<>();
+    fontMap.put("Arial", "Arial.ttf");
+    fontMap.put("Comfortaa", "Comfortaa.ttf");
+    fontMap.put("Courier New", "CourierNew.ttf");
+    fontMap.put("Times New Roman", "TimesNewRoman.ttf");
+    fontMap.put("FreeSans", "FreeSans.ttf");
+    fontMap.put("Calibri", "Calibri.ttf");
+    fontMap.put("Serif", "Serif.ttf");
+    fontMap.put("Sans Serif", "SansSerif.ttf");
+  }
 
   public class Header extends PdfPageEventHelper {
 
@@ -518,15 +540,16 @@ public class ExcelToPdf {
     return maxRowColumn;
   }
 
-  private Font getFontStyle(XSSFCellStyle cellStyle) throws AxelorException {
+  private Font getFontStyle(XSSFCellStyle cellStyle)
+      throws AxelorException, UnsupportedEncodingException {
 
     XSSFFont xssfFont = cellStyle.getFont();
     String fontFamily = FontFactory.HELVETICA;
+
     if (!FontFactory.isRegistered(xssfFont.getFontName())) {
-      throw new AxelorException(
-          TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-          IExceptionMessage.FONT_NOT_SUPPORTED + xssfFont.getFontName());
+      this.registerFont(xssfFont.getFontName());
     }
+
     fontFamily = xssfFont.getFontName();
     Font font = FontFactory.getFont(fontFamily);
     int fontStyle = Font.NORMAL;
@@ -546,6 +569,19 @@ public class ExcelToPdf {
     font.setColor(getFontColor(cellStyle));
 
     return font;
+  }
+
+  private void registerFont(String fontName) throws AxelorException, UnsupportedEncodingException {
+    if (fontMap.containsKey(fontName)) {
+      URL fileUrl = ResourceUtils.getResource("/reports/fonts/" + fontMap.get(fontName));
+      String decodedPath = URLDecoder.decode(fileUrl.getPath(), "UTF-8");
+      FontFactory.register(decodedPath, fontName);
+      LOG.info(String.format("Font Registered : %s", fontName));
+    } else {
+      throw new AxelorException(
+          TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
+          IExceptionMessage.FONT_NOT_SUPPORTED + fontName);
+    }
   }
 
   private float[] getColumnWidth(XSSFSheet sheet, int maxCol) {
