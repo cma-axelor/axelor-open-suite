@@ -165,6 +165,14 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     List<Model> result = this.getModelData(modelFullName, objectIds);
 
     XSSFWorkbook wb = new XSSFWorkbook(new FileInputStream(file));
+
+    if (ObjectUtils.isEmpty(wb.getSheet(TEMPLATE_SHEET_TITLE))) {
+      wb.close();
+      throw new AxelorException(
+          TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
+          IExceptionMessage.NO_TEMPLATE_SHEET_FOUND);
+    }
+
     Map<Integer, Map<String, Object>> inputMap = this.getInputMap(wb, TEMPLATE_SHEET_TITLE);
     this.getHeadersAndFooters(wb);
 
@@ -286,7 +294,6 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
         }
       }
     }
-
     return map;
   }
 
@@ -721,7 +728,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
                             .containsKey(key)))) {
                   throw new AxelorException(
                       TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-                      "No records found for : " + propertyName);
+                      IExceptionMessage.NO_RECORD_FOUND + propertyName);
                 }
 
                 Map<String, Object> entryValueMap = new HashMap<>(entry.getValue());
@@ -1768,7 +1775,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     if (StringUtils.isEmpty(resultValue)) {
       throw new AxelorException(
           TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-          "Invalid condition format : " + statement);
+          IExceptionMessage.INVALID_CONDITION_FORMAT + statement);
     } else if (resultValue.contains(" ") && resultValue.contains("$")) {
       value = resultValue.substring(0, resultValue.indexOf(" "));
       operation = resultValue.substring(resultValue.indexOf(" "));
