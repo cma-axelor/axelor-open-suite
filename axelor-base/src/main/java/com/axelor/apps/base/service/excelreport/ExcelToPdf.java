@@ -272,7 +272,6 @@ public class ExcelToPdf {
 
   public File createPdfFromExcel(
       File excelFile,
-      Map<String, ImmutablePair<Sheet, Sheet>> headerFooterSheetMap,
       Map<String, List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>>>
           pictureMap,
       Map<String, Map<String, List<ImmutablePair<Integer, Integer>>>> pictureRowShiftMap,

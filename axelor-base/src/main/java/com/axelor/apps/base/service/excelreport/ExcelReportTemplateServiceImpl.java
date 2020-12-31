@@ -107,9 +107,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   private static final String KEY_COLUMN = "Column";
   private static final String KEY_VALUE = "Value";
   private static final String KEY_CELL_STYLE = "CellStyle";
-  private static final String HEADER_SHEET_TITLE = "Header";
   private static final String TEMPLATE_SHEET_TITLE = "Template";
-  private static final String FOOTER_SHEET_TITLE = "Footer";
 
   // variable parameters
   private int maxRows = 100;
@@ -122,7 +120,6 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   private int BIGDECIMAL_SCALE = 2;
   private Map<Integer, Map<String, Object>> headerInputMap;
   private Map<Integer, Map<String, Object>> footerInputMap;
-  private Map<String, Set<CellRangeAddress>> headerFooterMergedCellsMap = new HashMap<>();
   private Set<CellRangeAddress> blankMergedCellsRangeAddressSet = new HashSet<>();
   private int collectionEntryRow = -1;
   private int record;
@@ -132,7 +129,6 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   private Map<String, Map<String, List<ImmutablePair<Integer, Integer>>>> pictureRowShiftMap =
       new HashMap<>();
   private Sheet originSheet;
-  private Map<String, ImmutablePair<Sheet, Sheet>> headerFooterSheetMap = new HashMap<>();
   private Print print = null;
   private List<Integer> removeCellKeyList = new ArrayList<>();
   private ResourceBundle resourceBundle;
@@ -191,7 +187,6 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       return Beans.get(ExcelToPdf.class)
           .createPdfFromExcel(
               outputFile,
-              headerFooterSheetMap,
               pictureInputMap,
               pictureRowShiftMap,
               !isLandscape,
@@ -214,16 +209,9 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return Mapper.of(klass);
   }
 
-  protected Map<Integer, Map<String, Object>> getInputMap(Workbook wb, String sheetName)
-      throws IOException, AxelorException {
+  protected Map<Integer, Map<String, Object>> getHeaderInputMap(Workbook wb) {
     Map<Integer, Map<String, Object>> map = new HashMap<>();
-
-    int lastColumn = 0;
-
-    Sheet sheet;
-
-    if (sheetName.equalsIgnoreCase(HEADER_SHEET_TITLE)
-        && ObjectUtils.notEmpty(print.getPrintPdfHeader())) {
+    if (ObjectUtils.notEmpty(print.getPrintPdfHeader())) {
       Map<String, Object> dataMap = new HashMap<>();
       dataMap.put(KEY_ROW, 1);
       dataMap.put(KEY_COLUMN, 1);
@@ -231,9 +219,12 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       dataMap.put(KEY_CELL_STYLE, wb.createCellStyle());
       map.put(0, dataMap);
     }
+    return map;
+  }
 
-    if (sheetName.equalsIgnoreCase(FOOTER_SHEET_TITLE)
-        && ObjectUtils.notEmpty(print.getPrintPdfFooter())) {
+  protected Map<Integer, Map<String, Object>> getFooterInputMap(Workbook wb) {
+    Map<Integer, Map<String, Object>> map = new HashMap<>();
+    if (ObjectUtils.notEmpty(print.getPrintPdfFooter())) {
 
       Font font = wb.createFont();
       font.setFontName(
@@ -256,6 +247,15 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       dataMap.put(KEY_CELL_STYLE, cellStyle);
       map.put(0, dataMap);
     }
+    return map;
+  }
+
+  protected Map<Integer, Map<String, Object>> getInputMap(Workbook wb, String sheetName)
+      throws AxelorException {
+    Map<Integer, Map<String, Object>> map = new HashMap<>();
+
+    int lastColumn = 0;
+    Sheet sheet;
 
     if (wb.getSheet(sheetName) == null) return map;
 
@@ -264,14 +264,6 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     if (sheetName.equalsIgnoreCase(TEMPLATE_SHEET_TITLE)) {
       mergedCellsRangeAddressList = sheet.getMergedRegions();
       originSheet = sheet;
-    }
-
-    if (sheetName.equalsIgnoreCase(HEADER_SHEET_TITLE)) {
-      headerFooterMergedCellsMap.put(HEADER_SHEET_TITLE, new HashSet<>(sheet.getMergedRegions()));
-    }
-
-    if (sheetName.equalsIgnoreCase(FOOTER_SHEET_TITLE)) {
-      headerFooterMergedCellsMap.put(FOOTER_SHEET_TITLE, new HashSet<>(sheet.getMergedRegions()));
     }
 
     this.getPictures(sheet, sheetName);
@@ -310,8 +302,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
           pair =
               new ImmutablePair<>(
                   picture.getClientAnchor().getRow1(), picture.getClientAnchor().getRow2());
-          triple =
-              new ImmutableTriple<>(picture, this.getDimensions(sheet, picture, sheetName), pair);
+          triple = new ImmutableTriple<>(picture, this.getDimensions(sheet, picture), pair);
 
           tripleList.add(triple);
         }
@@ -320,15 +311,12 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     }
   }
 
-  protected Dimension getDimensions(Sheet sheet, Picture picture, String sheetName) {
+  protected Dimension getDimensions(Sheet sheet, Picture picture) {
     int width = 0;
     int height = 0;
     Set<CellRangeAddress> mergedCellsList;
-    if (sheetName.equals(HEADER_SHEET_TITLE) || sheetName.equals(FOOTER_SHEET_TITLE)) {
-      mergedCellsList = headerFooterMergedCellsMap.get(sheetName);
-    } else {
-      mergedCellsList = new HashSet<>(mergedCellsRangeAddressList);
-    }
+
+    mergedCellsList = new HashSet<>(mergedCellsRangeAddressList);
 
     int firstRow;
     int lastRow;
@@ -383,23 +371,21 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       throws AxelorException, ScriptException, IOException {
     Workbook newWb = WorkbookFactory.create(true);
 
-    Map<Integer, Map<String, Object>> headerOutputMap = new HashMap<>();
-    Map<Integer, Map<String, Object>> footerOutputMap = new HashMap<>();
+    Map<Integer, Map<String, Object>> headerOutputMap;
+    Map<Integer, Map<String, Object>> footerOutputMap;
 
-    Map<Integer, Map<String, Object>> outputMap = new HashMap<>();
+    Map<Integer, Map<String, Object>> outputMap;
 
     mergeOffset = cellMergingService.setMergeOffset(inputMap, mapper, mergedCellsRangeAddressList);
 
     int i = 1;
-    Sheet headerSheet;
-    Sheet footerSheet;
 
     for (Model dataItem : data) {
       String sheetName = String.format("%s %s", modelName, i++);
-      headerOutputMap =
-          this.getOutputMap(headerInputMap, mapper, dataItem, HEADER_SHEET_TITLE, sheetName, wb);
-      footerOutputMap =
-          this.getOutputMap(footerInputMap, mapper, dataItem, FOOTER_SHEET_TITLE, sheetName, wb);
+
+      headerOutputMap = headerInputMap;
+      footerOutputMap = footerInputMap;
+
       outputMap =
           this.getOutputMap(inputMap, mapper, dataItem, TEMPLATE_SHEET_TITLE, sheetName, wb);
 
@@ -422,20 +408,6 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
         newSheet = this.writeTemplateSheet(outputMap, newSheet, 0);
         newSheet = this.setFooter(newSheet, footerOutputMap);
       } else if (formatType.equals("PDF")) {
-        Workbook workbook = WorkbookFactory.create(true);
-        headerSheet = null;
-        footerSheet = null;
-        if (ObjectUtils.notEmpty(headerOutputMap))
-          headerSheet =
-              this.createSheet(
-                  workbook, headerOutputMap, HEADER_SHEET_TITLE, HEADER_SHEET_TITLE + i);
-
-        if (ObjectUtils.notEmpty(footerOutputMap))
-          footerSheet =
-              this.createSheet(
-                  workbook, footerOutputMap, FOOTER_SHEET_TITLE, FOOTER_SHEET_TITLE + i);
-
-        headerFooterSheetMap.put(sheetName, new ImmutablePair<>(headerSheet, footerSheet));
         newSheet = this.writeTemplateSheet(outputMap, newSheet, 0);
       }
 
@@ -502,8 +474,6 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       triple.getLeft().getClientAnchor().setRow2(triple.getRight().getRight());
     }
 
-    tripleList = pictureInputMap.get(FOOTER_SHEET_TITLE);
-
     if (ObjectUtils.isEmpty(tripleList)) return;
 
     for (ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>> triple : tripleList) {
@@ -519,7 +489,6 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     sheet = this.write(map, sheet, 0, false);
     this.fillMergedRegionCells(sheet);
 
-    this.setMergedRegionsInSheet(sheet, headerFooterMergedCellsMap.get(name));
     return sheet;
   }
 
@@ -1486,22 +1455,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       headerOutputMap.get(0).replace(KEY_VALUE, cellValue);
     }
 
-    List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>> headerTripleList =
-        pictureInputMap.get(HEADER_SHEET_TITLE);
-
     int lastHeaderLineRow = 0;
     if (ObjectUtils.notEmpty(headerOutputMap)) {
       lastHeaderLineRow = this.getHeaderLines(headerOutputMap);
       sheet = this.write(headerOutputMap, sheet, 0, true);
-    }
-
-    if (ObjectUtils.notEmpty(headerTripleList)) {
-      int lastPictureRow = this.getLastPictureRow(headerTripleList);
-      int pictureOffset = lastPictureRow - lastHeaderLineRow;
-      if (pictureOffset > 0) {
-        lastHeaderLineRow += pictureOffset;
-      }
-      this.writePictures(sheet, headerTripleList, HEADER_SHEET_TITLE);
     }
 
     int offset = 2;
@@ -1522,8 +1479,6 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       this.writePictures(sheet, templateTripleList, TEMPLATE_SHEET_TITLE);
     }
 
-    this.setMergedRegionsInSheet(sheet, headerFooterMergedCellsMap.get(HEADER_SHEET_TITLE));
-
     return sheet;
   }
 
@@ -1541,31 +1496,13 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
   protected Sheet setFooter(Sheet sheet, Map<Integer, Map<String, Object>> footerOutputMap) {
 
-    List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>> footerTripleList =
-        new ArrayList<>();
-    if (ObjectUtils.notEmpty(pictureInputMap.get(FOOTER_SHEET_TITLE)))
-      footerTripleList.addAll(pictureInputMap.get(FOOTER_SHEET_TITLE));
-
     int footerStartRow = this.getSheetLastRowNum(sheet, mergedCellsRangeAddressSetPerSheet) + 3;
 
     if (ObjectUtils.notEmpty(footerOutputMap)) {
       this.shiftAll(footerOutputMap, footerStartRow);
     }
 
-    if (ObjectUtils.notEmpty(footerTripleList)) {
-      this.setPictureRowOffset(
-          footerTripleList, footerStartRow, sheet.getSheetName(), FOOTER_SHEET_TITLE);
-      this.writePictures(sheet, footerTripleList, FOOTER_SHEET_TITLE);
-    }
-
     sheet = this.write(footerOutputMap, sheet, 0, true);
-
-    if (ObjectUtils.notEmpty(headerFooterMergedCellsMap.get(FOOTER_SHEET_TITLE))) {
-      Set<CellRangeAddress> footerMergedCellsList =
-          new HashSet<>(headerFooterMergedCellsMap.get(FOOTER_SHEET_TITLE));
-      cellMergingService.shiftMergedRegions(footerMergedCellsList, footerStartRow);
-      this.setMergedRegionsInSheet(sheet, footerMergedCellsList);
-    }
 
     return sheet;
   }
@@ -1621,8 +1558,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   }
 
   protected void getHeadersAndFooters(Workbook wb) throws IOException, AxelorException {
-    headerInputMap = this.getInputMap(wb, HEADER_SHEET_TITLE);
-    footerInputMap = this.getInputMap(wb, FOOTER_SHEET_TITLE);
+    headerInputMap = this.getHeaderInputMap(wb);
+    footerInputMap = this.getFooterInputMap(wb);
   }
 
   protected Object getCellValue(Cell cell) {
