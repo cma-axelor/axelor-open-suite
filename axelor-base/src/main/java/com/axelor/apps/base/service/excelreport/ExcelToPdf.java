@@ -71,18 +71,18 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Picture;
 import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.ss.util.CellRangeAddress;
-import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFFont;
-import org.apache.poi.xssf.usermodel.XSSFPicture;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
-import org.apache.poi.xssf.usermodel.XSSFRow;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xssf.usermodel.extensions.XSSFCellBorder.BorderSide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,8 +94,7 @@ public class ExcelToPdf {
   private static boolean potrait = true;
   private List<CellRangeAddress> mergedCellsList;
   private Header headerEvent;
-  private Map<
-          String, List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>>
+  private Map<String, List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>>>
       pdfPictureMap;
   private Map<String, Map<String, List<ImmutablePair<Integer, Integer>>>> pdfPictureRowShiftMap =
       new HashMap<>();
@@ -273,8 +272,8 @@ public class ExcelToPdf {
 
   public File createPdfFromExcel(
       File excelFile,
-      Map<String, ImmutablePair<XSSFSheet, XSSFSheet>> headerFooterSheetMap,
-      Map<String, List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>>
+      Map<String, ImmutablePair<Sheet, Sheet>> headerFooterSheetMap,
+      Map<String, List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>>>
           pictureMap,
       Map<String, Map<String, List<ImmutablePair<Integer, Integer>>>> pictureRowShiftMap,
       boolean isPotrait,
@@ -286,8 +285,7 @@ public class ExcelToPdf {
     File pdfFile =
         MetaFiles.createTempFile(FilenameUtils.removeExtension(excelFile.getName()), ".pdf")
             .toFile();
-    FileInputStream excelStream = new FileInputStream(excelFile);
-    XSSFWorkbook workbook = new XSSFWorkbook(excelStream);
+    Workbook workbook = WorkbookFactory.create(excelFile);
     pdfPictureMap = pictureMap;
     pdfPictureRowShiftMap = pictureRowShiftMap;
     ImmutablePair<Document, File> pdfPair = createPdfDoc(pdfFile, print);
@@ -298,7 +296,7 @@ public class ExcelToPdf {
     headerEvent.setPrint(print);
 
     for (int sheetNum = 0; sheetNum < workbook.getNumberOfSheets(); sheetNum++) {
-      XSSFSheet sheet = workbook.getSheetAt(sheetNum);
+      Sheet sheet = workbook.getSheetAt(sheetNum);
       imageList = new ArrayList<>();
       sheetToPdf(pdfDoc, sheet);
       pdfDoc.newPage();
@@ -306,19 +304,18 @@ public class ExcelToPdf {
 
     pdfDoc.close();
     workbook.close();
-    excelStream.close();
 
     return pdfFile;
   }
 
-  private void sheetToPdf(Document pdfDoc, XSSFSheet sheet)
+  private void sheetToPdf(Document pdfDoc, Sheet sheet)
       throws DocumentException, IOException, AxelorException {
 
     PdfPTable pdfPTable = this.createPdfPTable(sheet);
     pdfDoc.add(pdfPTable);
   }
 
-  protected PdfPTable createPdfPTable(XSSFSheet sheet)
+  protected PdfPTable createPdfPTable(Sheet sheet)
       throws DocumentException, IOException, AxelorException {
 
     if (ObjectUtils.isEmpty(sheet)) return null;
@@ -336,7 +333,7 @@ public class ExcelToPdf {
     int lastValid = 0;
 
     while (rowNum < sheetMaxRow) {
-      XSSFRow row = sheet.getRow(rowNum);
+      Row row = sheet.getRow(rowNum);
       rowNum++;
       if (row != null && row.getZeroHeight() || row == null) {
         continue;
@@ -344,7 +341,7 @@ public class ExcelToPdf {
 
       int cellNum = 0;
       while (cellNum < pdfPTable.getNumberOfColumns()) {
-        XSSFCell cell = row.getCell(cellNum);
+        Cell cell = row.getCell(cellNum);
         cellNum++;
         PdfPCell pdfPCell = null;
 
@@ -372,9 +369,9 @@ public class ExcelToPdf {
     return pdfPTable;
   }
 
-  private PdfPCell createPdfCell(XSSFRow row, XSSFCell cell, PdfPCell pdfPCell)
+  private PdfPCell createPdfCell(Row row, Cell cell, PdfPCell pdfPCell)
       throws DocumentException, IOException, AxelorException {
-    Font font = getFontStyle(cell.getCellStyle());
+    Font font = getFontStyle(cell.getCellStyle(), cell.getSheet().getWorkbook());
 
     // font reduction
     font.setSize((dataSizeReductionPercentage * font.getSize()) / 100);
@@ -438,12 +435,12 @@ public class ExcelToPdf {
       sheetType = "Template";
     }
 
-    List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>
-        pictureTripleList = pdfPictureMap.get(sheetType);
+    List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>> pictureTripleList =
+        pdfPictureMap.get(sheetType);
     if (ObjectUtils.isEmpty(pictureTripleList)) return;
 
-    XSSFPicture picture;
-    for (ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>> pair :
+    Picture picture;
+    for (ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>> pair :
         pictureTripleList) {
       picture = pair.getLeft();
 
@@ -512,7 +509,7 @@ public class ExcelToPdf {
     return new ImmutablePair<>(doc, pdfFile);
   }
 
-  private int[] getMaxRowColumn(XSSFSheet sheet) {
+  private int[] getMaxRowColumn(Sheet sheet) {
 
     Iterator<Row> rowIter = sheet.iterator();
     int[] maxRowColumn = new int[2];
@@ -540,33 +537,32 @@ public class ExcelToPdf {
     return maxRowColumn;
   }
 
-  private Font getFontStyle(XSSFCellStyle cellStyle)
+  private Font getFontStyle(CellStyle cellStyle, Workbook workbook)
       throws AxelorException, UnsupportedEncodingException {
-
-    XSSFFont xssfFont = cellStyle.getFont();
+    org.apache.poi.ss.usermodel.Font sheetFont = workbook.getFontAt(cellStyle.getFontIndexAsInt());
     String fontFamily = FontFactory.HELVETICA;
 
-    if (!FontFactory.isRegistered(xssfFont.getFontName())) {
-      this.registerFont(xssfFont.getFontName());
+    if (!FontFactory.isRegistered(sheetFont.getFontName())) {
+      this.registerFont(sheetFont.getFontName());
     }
 
-    fontFamily = xssfFont.getFontName();
+    fontFamily = sheetFont.getFontName();
     Font font = FontFactory.getFont(fontFamily);
     int fontStyle = Font.NORMAL;
 
-    if (xssfFont.getBold()) {
+    if (sheetFont.getBold()) {
       fontStyle |= Font.BOLD;
     }
-    if (xssfFont.getItalic()) {
+    if (sheetFont.getItalic()) {
       fontStyle |= Font.ITALIC;
     }
-    if (xssfFont.getUnderline() == 1) {
+    if (sheetFont.getUnderline() == 1) {
       fontStyle |= Font.UNDERLINE;
     }
 
-    font.setSize((float) xssfFont.getFontHeight() / 20);
+    font.setSize((float) sheetFont.getFontHeight() / 20);
     font.setStyle(fontStyle);
-    font.setColor(getFontColor(cellStyle));
+    font.setColor(getFontColor(workbook, sheetFont));
 
     return font;
   }
@@ -584,7 +580,7 @@ public class ExcelToPdf {
     }
   }
 
-  private float[] getColumnWidth(XSSFSheet sheet, int maxCol) {
+  private float[] getColumnWidth(Sheet sheet, int maxCol) {
 
     float[] cells = new float[maxCol];
     int cellNum = 0;
@@ -595,7 +591,7 @@ public class ExcelToPdf {
     return cells;
   }
 
-  private void setCellBorder(PdfPCell pdfPCell, XSSFCell cell) {
+  private void setCellBorder(PdfPCell pdfPCell, Cell cell) {
 
     int cellBorder = Rectangle.NO_BORDER;
 
@@ -623,42 +619,58 @@ public class ExcelToPdf {
     pdfPCell.setBorder(cellBorder);
   }
 
-  private BaseColor getBorderColor(XSSFCellStyle cellStyle, BorderSide side) {
-
-    XSSFColor color = cellStyle.getBorderColor(side);
-    if (color == null || ObjectUtils.isEmpty(color.getARGBHex())) {
-      return null;
+  private BaseColor getBorderColor(CellStyle cellStyle, BorderSide side) {
+    String hexColor = null;
+    if (cellStyle instanceof XSSFCellStyle) {
+      XSSFColor color = ((XSSFCellStyle) cellStyle).getBorderColor(side);
+      if (color != null) {
+        String argbHex = color.getARGBHex();
+        if (argbHex != null) {
+          hexColor = "#" + argbHex.substring(2);
+        }
+      }
     }
-
-    String argbCode = color.getARGBHex();
-    String hexColor = "#" + argbCode.substring(2);
+    if (hexColor == null) {
+      hexColor = "#000000";
+    }
 
     return getBaseColor(hexColor);
   }
 
-  private BaseColor getFontColor(XSSFCellStyle cellStyle) {
-
-    XSSFFont hssfFont = cellStyle.getFont();
-    if (hssfFont.getXSSFColor() == null) {
-      return null;
+  private BaseColor getFontColor(Workbook workbook, org.apache.poi.ss.usermodel.Font font) {
+    String hexColor = null;
+    if (font instanceof XSSFFont) {
+      XSSFFont xssfFont = (XSSFFont) font;
+      XSSFColor color = xssfFont.getXSSFColor();
+      if (color != null) {
+        String argbHex = color.getARGBHex();
+        hexColor = "#" + argbHex.substring(2);
+      }
     }
-
-    String argbCode = hssfFont.getXSSFColor().getARGBHex();
-    String hexColor = "#" + argbCode.substring(2);
-
+    if (hexColor == null) {
+      hexColor = "#000000";
+    }
     return getBaseColor(hexColor);
   }
 
-  private void setCellBackGround(XSSFCellStyle cellStyle, PdfPCell pdfPCell, XSSFCell cell)
+  private void setCellBackGround(CellStyle cellStyle, PdfPCell pdfPCell, Cell cell)
       throws AxelorException {
 
-    XSSFColor color = cellStyle.getFillForegroundColorColor();
-
-    if (ObjectUtils.notEmpty(color) && ObjectUtils.notEmpty(color.getARGBHex())) {
-      String argbCode = color.getARGBHex();
-      String hexColor = "#" + argbCode.substring(2);
-      pdfPCell.setBackgroundColor(getBaseColor(hexColor));
+    String hexColor = null;
+    if (cellStyle instanceof XSSFCellStyle) {
+      XSSFColor color = ((XSSFCellStyle) cellStyle).getFillBackgroundColorColor();
+      if (color != null) {
+        String argbHex = color.getARGBHex();
+        if (argbHex != null) {
+          hexColor = "#" + argbHex.substring(2);
+        }
+      }
     }
+    if (hexColor == null) {
+      return;
+    }
+
+    pdfPCell.setBackgroundColor(getBaseColor(hexColor));
   }
 
   private BaseColor getBaseColor(String hexColor) {
@@ -668,18 +680,17 @@ public class ExcelToPdf {
     return new BaseColor(r, g, b);
   }
 
-  private Paragraph getParagraph(XSSFCell cell, Font font) {
+  private Paragraph getParagraph(Cell cell, Font font) {
     Paragraph p = new Paragraph();
     String pdfValue = cell.getStringCellValue();
 
     int runIndex = 0;
     int runLength = 0;
     boolean hasScript = false;
-    XSSFCellStyle style = null;
-    XSSFFont rtsFont = null;
     XSSFRichTextString rts = (XSSFRichTextString) cell.getRichStringCellValue();
-    style = cell.getCellStyle();
-    rtsFont = style.getFont();
+    CellStyle style = cell.getCellStyle();
+    org.apache.poi.ss.usermodel.Font rtsFont =
+        cell.getSheet().getWorkbook().getFontAt(style.getFontIndexAsInt());
 
     ImmutablePair<String, String> superTagPair = new ImmutablePair<>("<super>", "</super>");
     ImmutablePair<String, String> subTagPair = new ImmutablePair<>("<sub>", "</sub>");
@@ -767,7 +778,7 @@ public class ExcelToPdf {
     return chunkList;
   }
 
-  private ImmutablePair<Integer, Integer> getRowAndColumnSpan(XSSFCell cell) {
+  private ImmutablePair<Integer, Integer> getRowAndColumnSpan(Cell cell) {
     int colSpan = 0;
     int rowSpan = 1;
     if (ObjectUtils.notEmpty(mergedCellsList)) {
@@ -783,7 +794,7 @@ public class ExcelToPdf {
     return new ImmutablePair<>(rowSpan, colSpan);
   }
 
-  private boolean isInMergedRegion(XSSFCell cell) {
+  private boolean isInMergedRegion(Cell cell) {
     boolean isInMergedRegion = false;
 
     if (ObjectUtils.notEmpty(mergedCellsList)) {

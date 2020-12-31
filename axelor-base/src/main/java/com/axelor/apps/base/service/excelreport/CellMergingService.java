@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellRangeAddress;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
 
 public interface CellMergingService {
 
@@ -33,7 +33,7 @@ public interface CellMergingService {
       List<CellRangeAddress> mergedCellsRangeAddressList);
 
   public Set<CellRangeAddress> getBlankMergedCells(
-      XSSFSheet originSheet, List<CellRangeAddress> mergedCellsRangeAddressList, String sheetType);
+      Sheet originSheet, List<CellRangeAddress> mergedCellsRangeAddressList, String sheetType);
 
   public CellRangeAddress setMergedCellsForTotalRow(
       List<CellRangeAddress> mergedCellsRangeAddressList,

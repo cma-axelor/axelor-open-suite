@@ -26,16 +26,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellRangeAddress;
-import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
 
 public class CellMergingServiceImpl implements CellMergingService {
 
   private static final String KEY_ROW = "Row";
   private static final String KEY_COLUMN = "Column";
   private static final String KEY_VALUE = "Value";
-  private static final String KEY_CELL_STYLE = "CellStyle";
 
   @Override // sets global variable mergeOffset
   public int setMergeOffset(
@@ -82,10 +81,10 @@ public class CellMergingServiceImpl implements CellMergingService {
   @Override // sets blank merged cells from origin sheet to target sheet (header and footer sheets
   // not included)
   public Set<CellRangeAddress> getBlankMergedCells(
-      XSSFSheet originSheet, List<CellRangeAddress> mergedCellsRangeAddressList, String sheetType) {
+      Sheet originSheet, List<CellRangeAddress> mergedCellsRangeAddressList, String sheetType) {
 
     Set<CellRangeAddress> blankMergedCells = new HashSet<CellRangeAddress>();
-    XSSFCell cell = null;
+    Cell cell = null;
     for (CellRangeAddress cellRange : mergedCellsRangeAddressList) {
       cell = originSheet.getRow(cellRange.getFirstRow()).getCell(cellRange.getFirstColumn());
 

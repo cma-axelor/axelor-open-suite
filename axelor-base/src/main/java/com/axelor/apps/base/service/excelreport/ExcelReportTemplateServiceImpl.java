@@ -46,7 +46,6 @@ import com.google.common.base.Splitter;
 import com.google.inject.Inject;
 import com.itextpdf.awt.geom.Dimension;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.StringReader;
@@ -77,6 +76,8 @@ import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.ClientAnchor;
 import org.apache.poi.ss.usermodel.CreationHelper;
@@ -84,17 +85,17 @@ import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Picture;
+import org.apache.poi.ss.usermodel.RichTextString;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Shape;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.ss.util.CellRangeAddress;
-import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFDrawing;
 import org.apache.poi.xssf.usermodel.XSSFPicture;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
-import org.apache.poi.xssf.usermodel.XSSFRow;
-import org.apache.poi.xssf.usermodel.XSSFShape;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.hibernate.transform.BasicTransformerAdapter;
 
 public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateService {
@@ -126,13 +127,12 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   private int collectionEntryRow = -1;
   private int record;
   private boolean nextRowCheckActive = false;
-  private Map<
-          String, List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>>
+  private Map<String, List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>>>
       pictureInputMap = new HashMap<>();
   private Map<String, Map<String, List<ImmutablePair<Integer, Integer>>>> pictureRowShiftMap =
       new HashMap<>();
-  private XSSFSheet originSheet;
-  private Map<String, ImmutablePair<XSSFSheet, XSSFSheet>> headerFooterSheetMap = new HashMap<>();
+  private Sheet originSheet;
+  private Map<String, ImmutablePair<Sheet, Sheet>> headerFooterSheetMap = new HashMap<>();
   private Print print = null;
   private List<Integer> removeCellKeyList = new ArrayList<>();
   private ResourceBundle resourceBundle;
@@ -164,7 +164,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
     List<Model> result = this.getModelData(modelFullName, objectIds);
 
-    XSSFWorkbook wb = new XSSFWorkbook(new FileInputStream(file));
+    Workbook wb = WorkbookFactory.create(file);
 
     if (ObjectUtils.isEmpty(wb.getSheet(TEMPLATE_SHEET_TITLE))) {
       wb.close();
@@ -176,8 +176,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     Map<Integer, Map<String, Object>> inputMap = this.getInputMap(wb, TEMPLATE_SHEET_TITLE);
     this.getHeadersAndFooters(wb);
 
-    XSSFWorkbook newWb =
-        this.createXSSFWorkbook(inputMap, result, this.getMapper(modelFullName), formatType, wb);
+    Workbook newWb =
+        this.createWorkbook(inputMap, result, this.getMapper(modelFullName), formatType, wb);
     wb.close();
     File outputFile = MetaFiles.createTempFile(I18n.get(modelName), ".xlsx").toFile();
     FileOutputStream outputStream = new FileOutputStream(outputFile.getAbsolutePath());
@@ -214,14 +214,13 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return Mapper.of(klass);
   }
 
-  @SuppressWarnings("resource")
-  protected Map<Integer, Map<String, Object>> getInputMap(XSSFWorkbook wb, String sheetName)
+  protected Map<Integer, Map<String, Object>> getInputMap(Workbook wb, String sheetName)
       throws IOException, AxelorException {
     Map<Integer, Map<String, Object>> map = new HashMap<>();
 
     int lastColumn = 0;
 
-    XSSFSheet sheet;
+    Sheet sheet;
 
     if (sheetName.equalsIgnoreCase(HEADER_SHEET_TITLE)
         && ObjectUtils.notEmpty(print.getPrintPdfHeader())) {
@@ -247,7 +246,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       if (print.getIsFooterUnderLine()) {
         font.setUnderline(Font.U_SINGLE);
       }
-      XSSFCellStyle cellStyle = wb.createCellStyle();
+      CellStyle cellStyle = wb.createCellStyle();
       cellStyle.setFont(font);
 
       Map<String, Object> dataMap = new HashMap<>();
@@ -280,10 +279,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     int n = 0;
 
     for (int i = 0; i < maxRows; i++) {
-      XSSFRow row = sheet.getRow(i);
+      Row row = sheet.getRow(i);
       if (ObjectUtils.notEmpty(row)) {
         for (int j = 0; j < maxColumns; j++) {
-          XSSFCell cell = row.getCell(j);
+          Cell cell = row.getCell(j);
           if (ObjectUtils.isEmpty(cell) || isCellEmpty(cell)) {
             continue;
           }
@@ -297,17 +296,17 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return map;
   }
 
-  protected void getPictures(XSSFSheet sheet, String sheetName) {
+  protected void getPictures(Sheet sheet, String sheetName) {
     ImmutablePair<Integer, Integer> pair;
-    ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>> triple;
-    List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>> tripleList =
+    ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>> triple;
+    List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>> tripleList =
         new ArrayList<>();
 
-    XSSFDrawing drawing = sheet.getDrawingPatriarch();
+    Drawing<?> drawing = sheet.getDrawingPatriarch();
     if (ObjectUtils.notEmpty(drawing)) {
-      for (XSSFShape shape : drawing.getShapes()) {
+      for (Shape shape : ((XSSFDrawing) drawing).getShapes()) {
         if (shape instanceof Picture) {
-          XSSFPicture picture = (XSSFPicture) shape;
+          Picture picture = (XSSFPicture) shape;
           pair =
               new ImmutablePair<>(
                   picture.getClientAnchor().getRow1(), picture.getClientAnchor().getRow2());
@@ -321,7 +320,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     }
   }
 
-  protected Dimension getDimensions(XSSFSheet sheet, XSSFPicture picture, String sheetName) {
+  protected Dimension getDimensions(Sheet sheet, Picture picture, String sheetName) {
     int width = 0;
     int height = 0;
     Set<CellRangeAddress> mergedCellsList;
@@ -364,7 +363,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return new Dimension(width / 2f, height);
   }
 
-  protected Map<String, Object> getDataMap(XSSFCell cell) throws AxelorException {
+  protected Map<String, Object> getDataMap(Cell cell) throws AxelorException {
     Map<String, Object> map = new HashMap<>();
     Object cellValue = getCellValue(cell);
     map.put(KEY_ROW, cell.getRowIndex());
@@ -375,14 +374,14 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return map;
   }
 
-  protected XSSFWorkbook createXSSFWorkbook(
+  protected Workbook createWorkbook(
       Map<Integer, Map<String, Object>> inputMap,
       List<Model> data,
       Mapper mapper,
       String formatType,
-      XSSFWorkbook wb)
+      Workbook wb)
       throws AxelorException, ScriptException, IOException {
-    XSSFWorkbook newWb = new XSSFWorkbook();
+    Workbook newWb = WorkbookFactory.create(true);
 
     Map<Integer, Map<String, Object>> headerOutputMap = new HashMap<>();
     Map<Integer, Map<String, Object>> footerOutputMap = new HashMap<>();
@@ -392,8 +391,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     mergeOffset = cellMergingService.setMergeOffset(inputMap, mapper, mergedCellsRangeAddressList);
 
     int i = 1;
-    XSSFSheet headerSheet;
-    XSSFSheet footerSheet;
+    Sheet headerSheet;
+    Sheet footerSheet;
 
     for (Model dataItem : data) {
       String sheetName = String.format("%s %s", modelName, i++);
@@ -416,14 +415,14 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
                 wb);
       }
 
-      XSSFSheet newSheet = newWb.createSheet(sheetName);
+      Sheet newSheet = newWb.createSheet(sheetName);
 
       if (formatType.equals("XLSX")) {
         newSheet = this.setHeader(newSheet, outputMap, headerOutputMap);
         newSheet = this.writeTemplateSheet(outputMap, newSheet, 0);
         newSheet = this.setFooter(newSheet, footerOutputMap);
       } else if (formatType.equals("PDF")) {
-        XSSFWorkbook workbook = new XSSFWorkbook();
+        Workbook workbook = WorkbookFactory.create(true);
         headerSheet = null;
         footerSheet = null;
         if (ObjectUtils.notEmpty(headerOutputMap))
@@ -493,13 +492,12 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   }
 
   private void resetPictureMap() {
-    List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>> tripleList =
+    List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>> tripleList =
         pictureInputMap.get(TEMPLATE_SHEET_TITLE);
 
     if (ObjectUtils.isEmpty(tripleList)) return;
 
-    for (ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>> triple :
-        tripleList) {
+    for (ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>> triple : tripleList) {
       triple.getLeft().getClientAnchor().setRow1(triple.getRight().getLeft());
       triple.getLeft().getClientAnchor().setRow2(triple.getRight().getRight());
     }
@@ -508,17 +506,16 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
     if (ObjectUtils.isEmpty(tripleList)) return;
 
-    for (ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>> triple :
-        tripleList) {
+    for (ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>> triple : tripleList) {
       triple.getLeft().getClientAnchor().setRow1(triple.getRight().getLeft());
       triple.getLeft().getClientAnchor().setRow2(triple.getRight().getRight());
     }
   }
 
-  protected XSSFSheet createSheet(
-      XSSFWorkbook workbook, Map<Integer, Map<String, Object>> map, String name, String sheetName) {
+  protected Sheet createSheet(
+      Workbook workbook, Map<Integer, Map<String, Object>> map, String name, String sheetName) {
 
-    XSSFSheet sheet = workbook.createSheet(sheetName);
+    Sheet sheet = workbook.createSheet(sheetName);
     sheet = this.write(map, sheet, 0, false);
     this.fillMergedRegionCells(sheet);
 
@@ -527,13 +524,12 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   }
 
   protected void writePictures(
-      XSSFSheet sheet,
-      List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>
-          pictureTripleList,
+      Sheet sheet,
+      List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>> pictureTripleList,
       String sheetType) {
-    XSSFWorkbook workbook = sheet.getWorkbook();
-    XSSFPicture picture;
-    for (ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>> triple :
+    Workbook workbook = sheet.getWorkbook();
+    Picture picture;
+    for (ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>> triple :
         pictureTripleList) {
       picture = triple.getLeft();
       int pictureIndex =
@@ -602,7 +598,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       Object object,
       String sheetType,
       String sheetName,
-      XSSFWorkbook wb)
+      Workbook wb)
       throws AxelorException, IOException, ScriptException {
 
     mergedCellsRangeAddressSetPerSheet = new HashSet<>();
@@ -701,7 +697,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
             if (ObjectUtils.isEmpty(property)) {
               if (!propertyName.contains(".") || ObjectUtils.isEmpty(reportQueryBuilderList)) {
-                XSSFCellStyle newCellStyle = wb.createCellStyle();
+                CellStyle newCellStyle = wb.createCellStyle();
                 newCellStyle.setFont(((XSSFCellStyle) m.get(KEY_CELL_STYLE)).getFont());
                 m.replace(KEY_VALUE, "");
                 m.replace(KEY_CELL_STYLE, newCellStyle);
@@ -965,8 +961,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   }
 
   protected void setPictureRowShiftMap(String sheetName, String sheetType, int rowThreshold) {
-    List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>
-        pictureTripleList = pictureInputMap.get(sheetType);
+    List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>> pictureTripleList =
+        pictureInputMap.get(sheetType);
     ClientAnchor anchor;
 
     if (ObjectUtils.isEmpty(pictureTripleList)) return;
@@ -975,9 +971,9 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
 
     List<ImmutablePair<Integer, Integer>> pairList = new ArrayList<>();
 
-    for (ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>> pictureTriple :
+    for (ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>> pictureTriple :
         pictureTripleList) {
-      XSSFPicture picture = pictureTriple.getLeft();
+      Picture picture = pictureTriple.getLeft();
 
       if (picture.getClientAnchor().getRow1() > rowThreshold) {
         anchor = pictureTriple.getLeft().getClientAnchor();
@@ -1389,24 +1385,23 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return ImmutablePair.of(property, value);
   }
 
-  protected XSSFSheet writeTemplateSheet(
-      Map<Integer, Map<String, Object>> outputMap, XSSFSheet sheet, int offset) {
+  protected Sheet writeTemplateSheet(
+      Map<Integer, Map<String, Object>> outputMap, Sheet sheet, int offset) {
     sheet = this.write(outputMap, sheet, offset, false);
     this.fillMergedRegionCells(sheet);
     this.setMergedRegionsInSheet(sheet, mergedCellsRangeAddressSetPerSheet);
     return sheet;
   }
 
-  protected void setMergedRegionsInSheet(
-      XSSFSheet sheet, Set<CellRangeAddress> mergedCellsAddressSet) {
+  protected void setMergedRegionsInSheet(Sheet sheet, Set<CellRangeAddress> mergedCellsAddressSet) {
     if (ObjectUtils.isEmpty(mergedCellsAddressSet)) return;
 
     for (CellRangeAddress cellRange : mergedCellsAddressSet) sheet.addMergedRegionUnsafe(cellRange);
   }
 
-  protected XSSFSheet write(
+  protected Sheet write(
       Map<Integer, Map<String, Object>> outputMap,
-      XSSFSheet sheet,
+      Sheet sheet,
       int offset,
       boolean setExtraHeight) {
     for (Map.Entry<Integer, Map<String, Object>> entry : outputMap.entrySet()) {
@@ -1414,16 +1409,17 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       int cellRow = (Integer) m.get(KEY_ROW) + offset;
       int cellColumn = (Integer) m.get(KEY_COLUMN);
 
-      XSSFRow r = sheet.getRow(cellRow);
+      Row r = sheet.getRow(cellRow);
       if (r == null) {
         r = sheet.createRow(cellRow);
       }
-      XSSFCell c = r.getCell(cellColumn);
+      Cell c = r.getCell(cellColumn);
       if (c == null) {
         c = r.createCell(cellColumn, CellType.STRING);
       }
-      XSSFCellStyle newCellStyle = sheet.getWorkbook().createCellStyle();
-      XSSFCellStyle oldCellStyle = (XSSFCellStyle) m.get(KEY_CELL_STYLE);
+      Workbook workbook = sheet.getWorkbook();
+      CellStyle newCellStyle = workbook.createCellStyle();
+      CellStyle oldCellStyle = (XSSFCellStyle) m.get(KEY_CELL_STYLE);
 
       Object cellValue = m.get(KEY_VALUE);
       if (cellValue.getClass().equals(XSSFRichTextString.class)) {
@@ -1443,8 +1439,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return sheet;
   }
 
-  protected void fillMergedRegionCells(XSSFSheet currentSheet) {
-    XSSFCellStyle cellStyle;
+  protected void fillMergedRegionCells(Sheet currentSheet) {
+    CellStyle cellStyle;
     int firstRow;
     int lastRow;
     int firstColumn;
@@ -1472,8 +1468,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     }
   }
 
-  protected XSSFSheet setHeader(
-      XSSFSheet sheet,
+  protected Sheet setHeader(
+      Sheet sheet,
       Map<Integer, Map<String, Object>> outputMap,
       Map<Integer, Map<String, Object>> headerOutputMap) {
 
@@ -1481,7 +1477,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     if (StringUtils.notEmpty(html)) {
       // convert html to rich text
       List<RichTextDetails> cellValues = new ArrayList<>();
-      XSSFRichTextString cellValue = new XSSFRichTextString(html);
+      RichTextString cellValue = new XSSFRichTextString(html);
       cellValues.add(Beans.get(HtmlToExcel.class).createCellValue(html, sheet.getWorkbook()));
       if (ObjectUtils.notEmpty(cellValues.get(0))) {
         cellValue = Beans.get(HtmlToExcel.class).mergeTextDetails(cellValues);
@@ -1490,8 +1486,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       headerOutputMap.get(0).replace(KEY_VALUE, cellValue);
     }
 
-    List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>
-        headerTripleList = pictureInputMap.get(HEADER_SHEET_TITLE);
+    List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>> headerTripleList =
+        pictureInputMap.get(HEADER_SHEET_TITLE);
 
     int lastHeaderLineRow = 0;
     if (ObjectUtils.notEmpty(headerOutputMap)) {
@@ -1518,8 +1514,8 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       cellMergingService.shiftMergedRegions(mergedCellsRangeAddressSetPerSheet, offset);
     }
 
-    List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>
-        templateTripleList = pictureInputMap.get(TEMPLATE_SHEET_TITLE);
+    List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>> templateTripleList =
+        pictureInputMap.get(TEMPLATE_SHEET_TITLE);
     if (ObjectUtils.notEmpty(templateTripleList)) {
       this.setPictureRowOffset(
           templateTripleList, offset, sheet.getSheetName(), TEMPLATE_SHEET_TITLE);
@@ -1532,10 +1528,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   }
 
   protected int getLastPictureRow(
-      List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>
+      List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>>
           pictureTripleList) {
     int lastPictureRow = 0;
-    for (ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>> pair :
+    for (ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>> pair :
         pictureTripleList) {
       if (lastPictureRow < pair.getLeft().getClientAnchor().getRow2())
         lastPictureRow = pair.getLeft().getClientAnchor().getRow2();
@@ -1543,11 +1539,10 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return lastPictureRow;
   }
 
-  protected XSSFSheet setFooter(
-      XSSFSheet sheet, Map<Integer, Map<String, Object>> footerOutputMap) {
+  protected Sheet setFooter(Sheet sheet, Map<Integer, Map<String, Object>> footerOutputMap) {
 
-    List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>
-        footerTripleList = new ArrayList<>();
+    List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>> footerTripleList =
+        new ArrayList<>();
     if (ObjectUtils.notEmpty(pictureInputMap.get(FOOTER_SHEET_TITLE)))
       footerTripleList.addAll(pictureInputMap.get(FOOTER_SHEET_TITLE));
 
@@ -1575,7 +1570,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return sheet;
   }
 
-  protected int getSheetLastRowNum(XSSFSheet sheet, Set<CellRangeAddress> mergedCellsSet) {
+  protected int getSheetLastRowNum(Sheet sheet, Set<CellRangeAddress> mergedCellsSet) {
     int lastRowNum = 0;
     int temp = 0;
     lastRowNum = sheet.getLastRowNum();
@@ -1590,8 +1585,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
   }
 
   protected void setPictureRowOffset(
-      List<ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>>>
-          pictureTripleList,
+      List<ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>>> pictureTripleList,
       int rowOffset,
       String sheetName,
       String sheetType) {
@@ -1608,7 +1602,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       pictureRowShiftMap.get(sheetName).replace(sheetType, newPairList);
     }
 
-    for (ImmutableTriple<XSSFPicture, Dimension, ImmutablePair<Integer, Integer>> triple :
+    for (ImmutableTriple<Picture, Dimension, ImmutablePair<Integer, Integer>> triple :
         pictureTripleList) {
       anchor = triple.getLeft().getClientAnchor();
       anchor.setRow1(anchor.getRow1() + rowOffset);
@@ -1626,12 +1620,12 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return headerLines + 1;
   }
 
-  protected void getHeadersAndFooters(XSSFWorkbook wb) throws IOException, AxelorException {
+  protected void getHeadersAndFooters(Workbook wb) throws IOException, AxelorException {
     headerInputMap = this.getInputMap(wb, HEADER_SHEET_TITLE);
     footerInputMap = this.getInputMap(wb, FOOTER_SHEET_TITLE);
   }
 
-  protected Object getCellValue(XSSFCell cell) {
+  protected Object getCellValue(Cell cell) {
     Object value = null;
     switch (cell.getCellType()) {
       case BOOLEAN:
@@ -1658,7 +1652,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
     return value;
   }
 
-  protected boolean isCellEmpty(XSSFCell cell) {
+  protected boolean isCellEmpty(Cell cell) {
     BorderStyle borderStyleNone = BorderStyle.NONE;
 
     boolean isBlank = cell.getCellType().equals(CellType.BLANK);

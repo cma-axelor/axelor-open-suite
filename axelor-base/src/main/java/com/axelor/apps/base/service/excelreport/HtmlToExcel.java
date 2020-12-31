@@ -12,19 +12,19 @@ import java.util.regex.Pattern;
 import net.htmlparser.jericho.Element;
 import net.htmlparser.jericho.Source;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.RichTextString;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class HtmlToExcel {
 
   private static final int START_TAG = 0;
   private static final int END_TAG = 1;
-  private static final char BULLET_CHARACTER = '\u2022';
-  private static final String NEW_LINE = System.getProperty("line.separator");
 
-  public RichTextDetails createCellValue(String html, XSSFWorkbook workBook) {
+  public RichTextDetails createCellValue(String html, Workbook workBook) {
     html = html.replaceAll("\\(", "'").replaceAll("\\)", "'");
     Source source = new Source(html);
     Map<String, TagInfo> tagMap = new LinkedHashMap<String, HtmlToExcel.TagInfo>();
@@ -67,28 +67,28 @@ public class HtmlToExcel {
       }
     }
     matcher.appendTail(textBuffer);
-    Map<Integer, XSSFFont> fontMap = buildFontMap(textInfos, workBook);
+    Map<Integer, Font> fontMap = buildFontMap(textInfos, workBook);
 
     return new RichTextDetails(textBuffer.toString(), fontMap);
   }
 
-  public XSSFRichTextString mergeTextDetails(List<RichTextDetails> cellValues) {
+  public RichTextString mergeTextDetails(List<RichTextDetails> cellValues) {
     StringBuilder textBuffer = new StringBuilder();
-    Map<Integer, XSSFFont> mergedMap = new LinkedHashMap<Integer, XSSFFont>();
+    Map<Integer, Font> mergedMap = new LinkedHashMap<>();
     int currentIndex = 0;
     for (RichTextDetails richTextDetail : cellValues) {
       //  textBuffer.append(BULLET_CHARACTER + " ");
       currentIndex = textBuffer.length();
-      for (Entry<Integer, XSSFFont> entry : richTextDetail.getFontMap().entrySet()) {
+      for (Entry<Integer, Font> entry : richTextDetail.getFontMap().entrySet()) {
         mergedMap.put(entry.getKey() + currentIndex, entry.getValue());
       }
       textBuffer.append(richTextDetail.getRichText());
       // textBuffer.append(richTextDetail.getRichText()).append(NEW_LINE);
     }
 
-    XSSFRichTextString richText = new XSSFRichTextString(textBuffer.toString());
+    RichTextString richText = new XSSFRichTextString(textBuffer.toString());
     for (int i = 0; i < textBuffer.length(); i++) {
-      XSSFFont currentFont = mergedMap.get(i);
+      Font currentFont = mergedMap.get(i);
       if (currentFont != null) {
         richText.applyFont(i, i + 1, currentFont);
       }
@@ -96,9 +96,8 @@ public class HtmlToExcel {
     return richText;
   }
 
-  private static Map<Integer, XSSFFont> buildFontMap(
-      List<RichTextInfo> textInfos, XSSFWorkbook workBook) {
-    Map<Integer, XSSFFont> fontMap = new LinkedHashMap<Integer, XSSFFont>();
+  private static Map<Integer, Font> buildFontMap(List<RichTextInfo> textInfos, Workbook workBook) {
+    Map<Integer, Font> fontMap = new LinkedHashMap<Integer, Font>();
     for (RichTextInfo richTextInfo : textInfos) {
       if (richTextInfo.isValid()) {
         for (int i = richTextInfo.getStartIndex(); i < richTextInfo.getEndIndex(); i++) {
@@ -116,8 +115,7 @@ public class HtmlToExcel {
     return fontMap;
   }
 
-  private static XSSFFont mergeFont(
-      XSSFFont font, STYLES fontStyle, String fontValue, XSSFWorkbook workBook) {
+  private static Font mergeFont(Font font, STYLES fontStyle, String fontValue, Workbook workBook) {
     if (font == null) {
       font = workBook.createFont();
     }
@@ -167,8 +165,9 @@ public class HtmlToExcel {
                   new Color(
                       Integer.valueOf(rgb[0].trim()),
                       Integer.valueOf(rgb[1].trim()),
-                      Integer.valueOf(rgb[2].trim())));
-          font.setColor(myColor);
+                      Integer.valueOf(rgb[2].trim())),
+                  null);
+          font.setColor(myColor.getIndex());
         }
         break;
       case PARAGRAPH:
@@ -181,7 +180,7 @@ public class HtmlToExcel {
   }
 
   private static List<RichTextInfo> getRichTextInfoList(
-      TagInfo currentTag, int startIndex, XSSFWorkbook workBook) {
+      TagInfo currentTag, int startIndex, Workbook workBook) {
     List<RichTextInfo> infoList = new ArrayList<>();
     switch (STYLES.fromValue(currentTag.getTagName())) {
       case SPAN:
@@ -335,9 +334,9 @@ public class HtmlToExcel {
 
   static class RichTextDetails {
     private String richText;
-    private Map<Integer, XSSFFont> fontMap;
+    private Map<Integer, Font> fontMap;
 
-    public RichTextDetails(String richText, Map<Integer, XSSFFont> fontMap) {
+    public RichTextDetails(String richText, Map<Integer, Font> fontMap) {
       this.richText = richText;
       this.fontMap = fontMap;
     }
@@ -350,11 +349,11 @@ public class HtmlToExcel {
       this.richText = richText;
     }
 
-    public Map<Integer, XSSFFont> getFontMap() {
+    public Map<Integer, Font> getFontMap() {
       return fontMap;
     }
 
-    public void setFontMap(Map<Integer, XSSFFont> fontMap) {
+    public void setFontMap(Map<Integer, Font> fontMap) {
       this.fontMap = fontMap;
     }
   }
