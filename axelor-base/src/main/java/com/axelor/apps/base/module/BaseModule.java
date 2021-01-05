@@ -121,6 +121,8 @@ import com.axelor.apps.base.service.excelreport.CellMergingService;
 import com.axelor.apps.base.service.excelreport.CellMergingServiceImpl;
 import com.axelor.apps.base.service.excelreport.ExcelReportTemplateService;
 import com.axelor.apps.base.service.excelreport.ExcelReportTemplateServiceImpl;
+import com.axelor.apps.base.service.excelreport.out.pdf.Html2PdfConvertorService;
+import com.axelor.apps.base.service.excelreport.out.pdf.Html2PdfConvertorServiceImpl;
 import com.axelor.apps.base.service.imports.ConvertDemoDataFileService;
 import com.axelor.apps.base.service.imports.ConvertDemoDataFileServiceImpl;
 import com.axelor.apps.base.service.imports.ImportCityService;
@@ -227,5 +229,6 @@ public class BaseModule extends AxelorModule {
     bind(PrintTemplateLineService.class).to(PrintTemplateLineServiceImpl.class);
     bind(ExcelReportTemplateService.class).to(ExcelReportTemplateServiceImpl.class);
     bind(CellMergingService.class).to(CellMergingServiceImpl.class);
+    bind(Html2PdfConvertorService.class).to(Html2PdfConvertorServiceImpl.class);
   }
 }

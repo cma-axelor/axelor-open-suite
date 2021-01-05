@@ -38,4 +38,9 @@ dependencies {
 	implementation libs.poi_ooxml
 	implementation libs.poi_scratchpad
 	implementation libs.jericho_html
+	
+	implementation 'com.openhtmltopdf:openhtmltopdf-core:1.0.0'
+	implementation 'com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.0'
+	implementation 'com.openhtmltopdf:openhtmltopdf-java2d:1.0.0'
+	implementation libs.jsoup
 }

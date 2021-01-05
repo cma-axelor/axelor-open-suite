@@ -17,14 +17,19 @@
  */
 package com.axelor.apps.base.service.excelreport;
 
+import com.axelor.app.AppSettings;
+import com.axelor.apps.base.db.Company;
 import com.axelor.apps.base.db.Print;
 import com.axelor.apps.base.db.PrintTemplate;
 import com.axelor.apps.base.db.ReportQueryBuilder;
 import com.axelor.apps.base.db.ReportQueryBuilderParams;
+import com.axelor.apps.base.db.repo.PrintRepository;
 import com.axelor.apps.base.exceptions.IExceptionMessage;
 import com.axelor.apps.base.service.PrintTemplateService;
 import com.axelor.apps.base.service.app.AppBaseService;
 import com.axelor.apps.base.service.excelreport.HtmlToExcel.RichTextDetails;
+import com.axelor.apps.base.service.excelreport.out.html.Excel2HtmlConvertor;
+import com.axelor.apps.base.service.excelreport.out.pdf.Html2PdfConvertorService;
 import com.axelor.common.ObjectUtils;
 import com.axelor.common.StringUtils;
 import com.axelor.db.JPA;
@@ -101,6 +106,7 @@ import org.hibernate.transform.BasicTransformerAdapter;
 public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateService {
 
   @Inject protected CellMergingService cellMergingService;
+  @Inject protected Html2PdfConvertorService html2PdfConvertorService;
 
   // final constants
   private static final String KEY_ROW = "Row";
@@ -184,17 +190,104 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
       return outputFile;
     } else if (formatType.equals("PDF")) {
       ZipSecureFile.setMinInflateRatio(0);
-      return Beans.get(ExcelToPdf.class)
-          .createPdfFromExcel(
-              outputFile,
-              pictureInputMap,
-              pictureRowShiftMap,
-              !isLandscape,
-              dataSizeReduction,
-              print);
+      Excel2HtmlConvertor toHtml =
+          Excel2HtmlConvertor.create(
+              outputFile.getPath(), generateHeaderHtml(print), print.getPrintPdfFooter());
+      File html = toHtml.printPage();
+      String attachmentPath = AppSettings.get().getPath("file.upload.dir", "");
+      if (attachmentPath != null) {
+        attachmentPath =
+            attachmentPath.endsWith(File.separator)
+                ? attachmentPath
+                : attachmentPath + File.separator;
+      }
+      return html2PdfConvertorService.toPdf(html, attachmentPath);
     } else {
       return null;
     }
+  }
+
+  public String generateHeaderHtml(Print print) {
+    StringBuilder htmlBuilder = new StringBuilder();
+    String attachmentPath = AppSettings.get().getPath("file.upload.dir", "");
+    if (attachmentPath != null) {
+      attachmentPath =
+          attachmentPath.endsWith(File.separator)
+              ? attachmentPath
+              : attachmentPath + File.separator;
+    }
+
+    if (!print.getHidePrintSettings()) {
+      Company company = print.getCompany();
+      Integer logoPosition = print.getLogoPositionSelect();
+      String pdfHeader = print.getPrintPdfHeader() != null ? print.getPrintPdfHeader() : "";
+      String imageTag = "";
+      String logoWidth =
+          print.getLogoWidth() != null ? "width: " + print.getLogoWidth() + ";" : "width: 50%;";
+      String headerWidth =
+          print.getHeaderContentWidth() != null
+              ? "width: " + print.getHeaderContentWidth() + ";"
+              : "width: 40%;";
+
+      if (company != null
+          && company.getLogo() != null
+          && logoPosition != PrintRepository.LOGO_POSITION_NONE
+          && new File(attachmentPath + company.getLogo().getFilePath()).exists()) {
+        String width = company.getWidth() != 0 ? "width='" + company.getWidth() + "px'" : "";
+        String height = company.getHeight() != 0 ? company.getHeight() + "px" : "71px";
+        imageTag =
+            "<img src='"
+                + MetaFiles.getPath(company.getLogo()).toUri()
+                + "' height='"
+                + height
+                + "' "
+                + width
+                + "/>";
+      }
+
+      switch (logoPosition) {
+        case PrintRepository.LOGO_POSITION_LEFT:
+          htmlBuilder.append(
+              "<table style='width: 100%;'><tr><td valign='top' style='text-align: left; "
+                  + logoWidth
+                  + "'>"
+                  + imageTag
+                  + "</td><td valign='top' style='width: 10%'></td><td valign='top' style='text-align: left; "
+                  + headerWidth
+                  + "'>"
+                  + pdfHeader
+                  + "</td></tr></table>");
+          break;
+        case PrintRepository.LOGO_POSITION_CENTER:
+          htmlBuilder.append(
+              "<table style=\"width: 100%;\"><tr><td valign='top' style='width: 33.33%;'></td><td valign='top' style='text-align: center; width: 33.33%;'>"
+                  + imageTag
+                  + "</td><td valign='top' style='text-align: left; width: 33.33%;'>"
+                  + pdfHeader
+                  + "</td></tr></table>");
+          break;
+        case PrintRepository.LOGO_POSITION_RIGHT:
+          htmlBuilder.append(
+              "<table style='width: 100%;'><tr><td valign='top' style='text-align: left; "
+                  + headerWidth
+                  + "'>"
+                  + pdfHeader
+                  + "</td><td valign='top' style='width: 10%'></td><td valign='top' style='text-align: center; "
+                  + logoWidth
+                  + "'>"
+                  + imageTag
+                  + "</td></tr></table>");
+          break;
+        default:
+          htmlBuilder.append(
+              "<table style='width: 100%;'><tr><td style='width: 60%;'></td><td valign='top' style='text-align: left; width: 40%'>"
+                  + pdfHeader
+                  + "</td></tr></table>");
+          break;
+      }
+    }
+
+    return htmlBuilder.toString();
   }
 
   @SuppressWarnings("unchecked")
@@ -1124,7 +1217,7 @@ public class ExcelReportTemplateServiceImpl implements ExcelReportTemplateServic
         newMap.putAll(newEntryValueMap);
         newMap.replace(KEY_ROW, rowNumber + rowOffset + localMergeOffset);
 
-        LinkedHashMap<String, String> recordMap = (LinkedHashMap<String, String>) ob;
+        Map<String, String> recordMap = (LinkedHashMap<String, String>) ob;
         Object value = recordMap.get(key);
         Object keyValue = "";
 
