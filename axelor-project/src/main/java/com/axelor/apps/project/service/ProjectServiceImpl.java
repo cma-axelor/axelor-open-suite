@@ -21,7 +21,9 @@ import com.axelor.apps.base.db.Company;
 import com.axelor.apps.base.db.Partner;
 import com.axelor.apps.project.db.Project;
 import com.axelor.apps.project.db.ProjectTask;
+import com.axelor.apps.project.db.ProjectTaskCategory;
 import com.axelor.apps.project.db.ProjectTemplate;
+import com.axelor.apps.project.db.ResourceBooking;
 import com.axelor.apps.project.db.TaskTemplate;
 import com.axelor.apps.project.db.Wiki;
 import com.axelor.apps.project.db.repo.ProjectRepository;
@@ -29,6 +31,7 @@ import com.axelor.apps.project.db.repo.WikiRepository;
 import com.axelor.apps.project.translation.ITranslation;
 import com.axelor.auth.AuthUtils;
 import com.axelor.auth.db.User;
+import com.axelor.common.ObjectUtils;
 import com.axelor.exception.AxelorException;
 import com.axelor.exception.db.repo.TraceBackRepository;
 import com.axelor.i18n.I18n;
@@ -174,7 +177,7 @@ public class ProjectServiceImpl implements ProjectService {
         Iterator<TaskTemplate> taskTemplateItr = taskTemplateSet.iterator();
 
         while (taskTemplateItr.hasNext()) {
-          createTask(taskTemplateItr.next(), project);
+          createTask(taskTemplateItr.next(), project, taskTemplateSet);
         }
       }
 
@@ -182,12 +185,63 @@ public class ProjectServiceImpl implements ProjectService {
     }
   }
 
-  public ProjectTask createTask(TaskTemplate taskTemplate, Project project) {
+  public ProjectTask createTask(
+      TaskTemplate taskTemplate, Project project, Set<TaskTemplate> taskTemplateSet) {
 
+    if (!ObjectUtils.isEmpty(project.getProjectTaskList())) {
+      for (ProjectTask projectTask : project.getProjectTaskList()) {
+        if (projectTask.getName().equals(taskTemplate.getName())) {
+          return projectTask;
+        }
+      }
+    }
     ProjectTask task =
         projectTaskService.create(taskTemplate.getName(), project, taskTemplate.getAssignedTo());
     task.setDescription(taskTemplate.getDescription());
+    ProjectTaskCategory projectTaskCategory = taskTemplate.getProjectTaskCategory();
+    if (projectTaskCategory != null) {
+      task.setProjectTaskCategory(projectTaskCategory);
+      project.addProjectTaskCategorySetItem(projectTaskCategory);
+    }
 
+    TaskTemplate parentTaskTemplate = taskTemplate.getParentTaskTemplate();
+
+    if (parentTaskTemplate != null && taskTemplateSet.contains(parentTaskTemplate)) {
+      task.setParentTask(this.createTask(parentTaskTemplate, project, taskTemplateSet));
+      return task;
+    }
     return task;
+  }
+
+  public boolean checkIfResourceBooked(Project project) {
+
+    List<ResourceBooking> resourceBookingList = project.getResourceBookingList();
+    if (resourceBookingList != null) {
+      for (ResourceBooking resourceBooking : resourceBookingList) {
+        if (resourceBooking.getFromDate() != null
+            && resourceBooking.getToDate() != null
+            && (resourceBookingService.checkIfResourceBooked(resourceBooking)
+                || checkIfResourceBookedInList(resourceBookingList, resourceBooking))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  public boolean checkIfResourceBookedInList(
+      List<ResourceBooking> resourceBookingList, ResourceBooking resourceBooking) {
+
+    return resourceBookingList.stream()
+        .anyMatch(
+            x ->
+                !x.equals(resourceBooking)
+                    && x.getResource().equals(resourceBooking.getResource())
+                    && x.getFromDate() != null
+                    && x.getToDate() != null
+                    && ((resourceBooking.getFromDate().compareTo(x.getFromDate()) >= 0
+                            && resourceBooking.getFromDate().compareTo(x.getToDate()) <= 0)
+                        || (resourceBooking.getToDate().compareTo(x.getFromDate()) >= 0)
+                            && resourceBooking.getToDate().compareTo(x.getToDate()) <= 0));
   }
 }
