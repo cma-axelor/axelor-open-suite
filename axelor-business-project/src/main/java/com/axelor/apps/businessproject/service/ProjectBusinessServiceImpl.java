@@ -35,6 +35,7 @@ import com.axelor.apps.sale.db.SaleOrder;
 import com.axelor.apps.sale.db.SaleOrderLine;
 import com.axelor.apps.sale.db.repo.SaleOrderRepository;
 import com.axelor.apps.sale.service.saleorder.SaleOrderCreateService;
+import com.axelor.apps.supplychain.service.SaleOrderSupplychainService;
 import com.axelor.apps.supplychain.service.app.AppSupplychainService;
 import com.axelor.auth.db.User;
 import com.axelor.exception.AxelorException;
