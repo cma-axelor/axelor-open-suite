@@ -213,6 +213,7 @@ public class ProjectServiceImpl implements ProjectService {
     return task;
   }
 
+  
   public boolean checkIfResourceBooked(Project project) {
 
     List<ResourceBooking> resourceBookingList = project.getResourceBookingList();
