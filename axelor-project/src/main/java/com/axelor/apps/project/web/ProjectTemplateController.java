@@ -17,6 +17,8 @@
  */
 package com.axelor.apps.project.web;
 
+import java.util.LinkedHashMap;
+
 import com.axelor.apps.base.db.AppProject;
 import com.axelor.apps.base.db.Partner;
 import com.axelor.apps.base.db.Wizard;
@@ -25,6 +27,7 @@ import com.axelor.apps.project.db.Project;
 import com.axelor.apps.project.db.ProjectTemplate;
 import com.axelor.apps.project.db.repo.ProjectTemplateRepository;
 import com.axelor.apps.project.service.ProjectService;
+import com.axelor.apps.project.service.ProjectTemplateService;
 import com.axelor.apps.project.service.app.AppProjectService;
 import com.axelor.exception.AxelorException;
 import com.axelor.exception.service.TraceBackService;
@@ -35,7 +38,6 @@ import com.axelor.rpc.ActionRequest;
 import com.axelor.rpc.ActionResponse;
 import com.axelor.rpc.Context;
 import com.google.inject.Singleton;
-import java.util.LinkedHashMap;
 
 @Singleton
 public class ProjectTemplateController {
@@ -119,5 +121,12 @@ public class ProjectTemplateController {
     } catch (AxelorException e) {
       TraceBackService.trace(response, e);
     }
+  }
+
+  public void addParentTaskTemplate(ActionRequest request, ActionResponse response) {
+    ProjectTemplate projectTemplate = request.getContext().asType(ProjectTemplate.class);
+    projectTemplate =
+        Beans.get(ProjectTemplateService.class).addParentTaskTemplate(projectTemplate);
+    response.setValue("taskTemplateSet", projectTemplate.getTaskTemplateSet());
   }
 }
