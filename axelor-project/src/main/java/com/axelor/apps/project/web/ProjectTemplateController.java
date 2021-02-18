@@ -17,8 +17,6 @@
  */
 package com.axelor.apps.project.web;
 
-import java.util.LinkedHashMap;
-
 import com.axelor.apps.base.db.AppProject;
 import com.axelor.apps.base.db.Partner;
 import com.axelor.apps.base.db.Wizard;
@@ -38,6 +36,7 @@ import com.axelor.rpc.ActionRequest;
 import com.axelor.rpc.ActionResponse;
 import com.axelor.rpc.Context;
 import com.google.inject.Singleton;
+import java.util.LinkedHashMap;
 
 @Singleton
 public class ProjectTemplateController {
