@@ -28,7 +28,7 @@
       <button name="stopBtn" icon="fa-power-off" onClick="action-project-task-record-status-canceled,save"/>
     </toolbar>
     <menubar>
-          <menu name="projectTaskMenu" title="Tools">   
+          <menu name="projectTaskMenu" title="Tools"  if="__config__.app.getApp('project')?.resourceManagement">     
               <item name="bookResourceItem" title="Book resource" action="save,action-project-task-book-resource"/>
           </menu>
     </menubar>

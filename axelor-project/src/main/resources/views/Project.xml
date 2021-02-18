@@ -751,6 +751,10 @@
      <action-method name="action-project-view-show-invoicing-projects">
 		<call class="com.axelor.apps.businessproject.web.ProjectController" method="showInvoicingProjects"/>
 	</action-method>
+
+	<action-method name="action-project-method-check-resource-availibility">
+		 <call class="com.axelor.apps.project.web.ProjectController" method="checkIfResourceBooked"/>
+	</action-method>
 		
   	<action-attrs name="action-project-attrs-scale-and-precision">
 		<attribute name="scale" for="price" expr="eval: __config__.app.getNbDecimalDigitForUnitPrice()"/>
