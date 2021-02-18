@@ -49,6 +49,9 @@ public class ProjectModule extends AxelorModule {
     bind(ProjectTaskService.class).to(ProjectTaskServiceImpl.class);
     bind(TeamRepository.class).to(TeamProjectRepository.class);
     bind(TimerProjectTaskService.class).to(TimerProjectTaskServiceImpl.class);
+    bind(TaskTemplateService.class).to(TaskTemplateServiceImpl.class);
+    bind(ProjectTemplateService.class).to(ProjectTemplateServiceImpl.class);
+    bind(TaskTemplateRepository.class).to(TaskTemplateManagementRepository.class);
     bind(ResourceBookingService.class).to(ResourceBookingServiceImpl.class);
   }
 }
