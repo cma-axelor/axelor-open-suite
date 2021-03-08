@@ -428,4 +428,8 @@ public interface IExceptionMessage {
   /* Scheduler */
   public static final String QUARTZ_SCHEDULER_ENABLED = /*$$(*/
       "The scheduler service is enabled." /*)*/;
+
+  /* GSuite */
+  public static final String NO_CONFIGURATION_EXCEPTION = /*$$(*/
+      "GSuite configuration missing on App" /*)*/;
 }

@@ -87,6 +87,11 @@
 					<field name="geoNamesUrl" colSpan="12"/>
 				</panel>
 				
+				<panel name="googleAuthPanel" title="Google oAuth">
+					<field name="clientId" colSpan="12"/>
+					<field name="clientSecret" colSpan="12"/>
+				</panel>
+				
 		    </panel>
 		    <panel name="currencyConversionPanel" title="Currency conversion" colSpan="12">
 				<button name="updateCurrencyConversionBtn" title="Update &amp; Historize conversion rate"  onClick="save,action-base-method-update-currency-conversion" readonlyIf="!currencyConversionLineList"/>

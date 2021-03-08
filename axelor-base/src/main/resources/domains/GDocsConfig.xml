@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<domain-models xmlns="http://axelor.com/xml/ns/domain-models"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://axelor.com/xml/ns/domain-models http://axelor.com/xml/ns/domain-models/domain-models_5.4.xsd">
+
+  <module name="base" package="com.axelor.apps.base.db"/>
+
+  <entity name="GDocsConfig" lang="java">
+  	
+  	<many-to-one name="company" ref="com.axelor.apps.base.db.Company" title="Company"/>
+  	<one-to-many name="configLineList" ref="com.axelor.apps.base.db.GDocsConfigLine" mappedBy="config" title="Models"/>
+  	
+  	<boolean name="isAuthorized" title="Authorized ?"  readonly="true"/>
+  	
+<!-- 	<string name="accessToken" title="Access token" />
+	<string name="refreshToken" title="Refresh token"/>
+ -->	
+	<string name="googleDriveId" title="Google drive ID"/>
+	
+	<finder-method name="findByGoogleDriveId" using="googleDriveId" />
+
+  </entity>
+
+</domain-models>

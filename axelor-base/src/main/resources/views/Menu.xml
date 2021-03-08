@@ -951,4 +951,15 @@
      <view type="grid" name="print-template-grid"/>
      <view type="form" name="print-template-form"/>
   </action-view>
+  
+  <menuitem name="gdoc-conf-root" parent="admin-root" if="__config__.app.isApp('base')" title="GDocs config"  order="41" />
+
+  <menuitem name="gdoc-conf-gdoc-conf-root" parent="gdoc-conf-root" title="GDocs config" action="action.gdocs.config.view.all"/>
+
+  <action-view name="action.gdocs.config.view.all" title="GDocs config" model="com.axelor.apps.base.db.GDocsConfig">
+     <view type="grid" name="gdocs-config-grid"/>
+     <view type="form" name="gdocs-config-form"/>
+  </action-view>  
+  
+  
 </object-views>

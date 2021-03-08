@@ -23,6 +23,11 @@
 		
 		<string name="googleMapsApiKey" title="Google Maps API key"/>
 		
+		<!-- Google oAuth configuration -->
+		<string name="clientId" title="Client ID" encrypted="true"/>
+		<string name="clientSecret" title="Client secret" encrypted="true"/>	
+		
+		
 		<!-- Currency Conversion Webservice URL -->
 		<string name="currencyWsURL" title="Currency Ws URL" selection="base.app.base.currency.api.select"
 		 default="com.axelor.apps.base.service.currency.ECBCurrencyConversionService"/>

@@ -33,4 +33,7 @@ dependencies {
 
 	implementation libs.google_oauth_client_jetty
 	implementation libs.google_api_services_people
+	
+	implementation 'com.google.apis:google-api-services-drive:v3-rev197-1.25.0'
+	implementation 'com.google.apis:google-api-services-docs:v1-rev20190827-1.30.1'
 }
