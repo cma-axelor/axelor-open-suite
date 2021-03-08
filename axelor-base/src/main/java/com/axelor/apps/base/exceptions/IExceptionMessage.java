@@ -443,4 +443,8 @@ public interface IExceptionMessage {
       "Please fill in GeoNames URL in Base application configuration." /*)*/;
   public static final String INVALID_GEONAMES_IMPORT_FILE = /*$$(*/
       "The geonames file type is invalid." /*)*/;
+
+  /* GSuite */
+  public static final String NO_CONFIGURATION_EXCEPTION = /*$$(*/
+      "GSuite configuration missing on App" /*)*/;
 }

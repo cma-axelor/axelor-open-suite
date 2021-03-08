@@ -123,6 +123,9 @@ import com.axelor.apps.base.service.app.AppBaseService;
 import com.axelor.apps.base.service.app.AppBaseServiceImpl;
 import com.axelor.apps.base.service.app.AppService;
 import com.axelor.apps.base.service.app.AppServiceImpl;
+import com.axelor.apps.base.service.gsuite.GSuiteService;
+import com.axelor.apps.base.service.gsuite.docs.GDocsTemplateService;
+import com.axelor.apps.base.service.gsuite.docs.GDocsTemplateServiceImpl;
 import com.axelor.apps.base.service.imports.ConvertDemoDataFileService;
 import com.axelor.apps.base.service.imports.ConvertDemoDataFileServiceImpl;
 import com.axelor.apps.base.service.imports.ImportCityService;
@@ -233,5 +236,7 @@ public class BaseModule extends AxelorModule {
     bind(AdvancedImportRepository.class).to(AdvancedImportBaseRepository.class);
     bind(AuthPac4jUserService.class).to(BaseAuthPac4jUserService.class);
     bind(ImportConfigurationRepository.class).to(ImportConfigurationBaseRepository.class);
+    bind(GSuiteService.class);
+    bind(GDocsTemplateService.class).to(GDocsTemplateServiceImpl.class);
   }
 }
