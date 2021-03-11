@@ -17,4 +17,11 @@
  */
 package com.axelor.apps.base.service.gsuite.docs;
 
-public interface GDocsTemplateService {}
+import com.axelor.db.Model;
+import com.google.api.services.docs.v1.model.Request;
+import java.util.List;
+
+public interface GDocsTemplateService {
+
+  List<Request> generateRequests(Class<?> klass, Model bean);
+}
