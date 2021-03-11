@@ -172,7 +172,8 @@ public class GSuiteService {
   }
 
   protected FileDataStoreFactory getFileDataStoreFactory() throws IOException {
-    final File fileUploadDir = Paths.get(AvailableAppSettings.FILE_UPLOAD_DIR, "gsuite").toFile();
+    final File fileUploadDir =
+        Paths.get(AppSettings.get().get(AvailableAppSettings.FILE_UPLOAD_DIR), "gsuite").toFile();
     return new FileDataStoreFactory(fileUploadDir);
   }
 
