@@ -17,17 +17,13 @@
  */
 package com.axelor.apps.base.service.gsuite.docs;
 
-import com.axelor.apps.base.db.GDocsConfig;
-import com.axelor.apps.base.db.GDocsConfigLine;
-import com.axelor.db.Model;
-import com.axelor.exception.AxelorException;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.model.File;
 import java.io.IOException;
 
-public interface GDocsTemplateService {
+public interface GDriveService {
 
-  public void generateAll(GDocsConfig config)
-      throws AxelorException, ClassNotFoundException, IOException;
-
-  public void generate(GDocsConfig config, GDocsConfigLine configLine, Model model)
-		throws AxelorException, ClassNotFoundException;
+  public File copyFile(
+      String destinationFolder, String fileName, String sourceFileId, Drive driveService)
+      throws IOException;
 }

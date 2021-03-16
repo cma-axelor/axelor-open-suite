@@ -17,17 +17,18 @@
  */
 package com.axelor.apps.base.service.gsuite.docs;
 
-import com.axelor.apps.base.db.GDocsConfig;
-import com.axelor.apps.base.db.GDocsConfigLine;
-import com.axelor.db.Model;
-import com.axelor.exception.AxelorException;
+import com.google.api.services.docs.v1.Docs;
+import com.google.api.services.docs.v1.model.BatchUpdateDocumentRequest;
+import com.google.api.services.docs.v1.model.Request;
 import java.io.IOException;
+import java.util.List;
 
-public interface GDocsTemplateService {
+public class GDocsServiceImpl implements GDocsService {
 
-  public void generateAll(GDocsConfig config)
-      throws AxelorException, ClassNotFoundException, IOException;
-
-  public void generate(GDocsConfig config, GDocsConfigLine configLine, Model model)
-		throws AxelorException, ClassNotFoundException;
+  @Override
+  public void batchUpdate(String documentId, List<Request> requests, final Docs docsService)
+      throws IOException {
+    BatchUpdateDocumentRequest body = new BatchUpdateDocumentRequest();
+    docsService.documents().batchUpdate(documentId, body.setRequests(requests)).execute();
+  }
 }
