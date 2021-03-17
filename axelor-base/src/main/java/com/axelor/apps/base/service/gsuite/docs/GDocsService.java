@@ -18,12 +18,13 @@
 package com.axelor.apps.base.service.gsuite.docs;
 
 import com.google.api.services.docs.v1.Docs;
+import com.google.api.services.docs.v1.model.BatchUpdateDocumentResponse;
 import com.google.api.services.docs.v1.model.Request;
 import java.io.IOException;
 import java.util.List;
 
 public interface GDocsService {
 
-  public void batchUpdate(String documentId, List<Request> requests, Docs docsService)
-      throws IOException;
+  public BatchUpdateDocumentResponse batchUpdate(
+      String documentId, List<Request> requests, Docs docsService) throws IOException;
 }

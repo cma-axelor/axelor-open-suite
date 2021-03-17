@@ -120,8 +120,14 @@ import com.axelor.apps.base.service.app.AppBaseServiceImpl;
 import com.axelor.apps.base.service.app.AppService;
 import com.axelor.apps.base.service.app.AppServiceImpl;
 import com.axelor.apps.base.service.gsuite.GSuiteService;
+import com.axelor.apps.base.service.gsuite.docs.GDocsDataMapService;
+import com.axelor.apps.base.service.gsuite.docs.GDocsDataMapServiceImpl;
+import com.axelor.apps.base.service.gsuite.docs.GDocsService;
+import com.axelor.apps.base.service.gsuite.docs.GDocsServiceImpl;
 import com.axelor.apps.base.service.gsuite.docs.GDocsTemplateService;
 import com.axelor.apps.base.service.gsuite.docs.GDocsTemplateServiceImpl;
+import com.axelor.apps.base.service.gsuite.docs.GDriveService;
+import com.axelor.apps.base.service.gsuite.docs.GDriveServiceImpl;
 import com.axelor.apps.base.service.imports.ConvertDemoDataFileService;
 import com.axelor.apps.base.service.imports.ConvertDemoDataFileServiceImpl;
 import com.axelor.apps.base.service.imports.ImportCityService;
@@ -229,5 +235,8 @@ public class BaseModule extends AxelorModule {
     bind(PrintTemplateLineService.class).to(PrintTemplateLineServiceImpl.class);
     bind(GSuiteService.class);
     bind(GDocsTemplateService.class).to(GDocsTemplateServiceImpl.class);
+    bind(GDriveService.class).to(GDriveServiceImpl.class);
+    bind(GDocsService.class).to(GDocsServiceImpl.class);
+    bind(GDocsDataMapService.class).to(GDocsDataMapServiceImpl.class);
   }
 }
