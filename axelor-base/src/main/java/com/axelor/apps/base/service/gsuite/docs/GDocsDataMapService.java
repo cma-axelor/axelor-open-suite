@@ -17,17 +17,10 @@
  */
 package com.axelor.apps.base.service.gsuite.docs;
 
-import com.axelor.apps.base.db.GDocsConfig;
-import com.axelor.apps.base.db.GDocsConfigLine;
 import com.axelor.db.Model;
-import com.axelor.exception.AxelorException;
-import java.io.IOException;
+import java.util.Map;
 
-public interface GDocsTemplateService {
+public interface GDocsDataMapService {
 
-  public void generateAll(GDocsConfig config)
-      throws AxelorException, ClassNotFoundException, IOException;
-
-  public void generate(GDocsConfigLine configLine, Long configId, Model model)
-      throws AxelorException, ClassNotFoundException;
+  public Map<String, Object> generateDataMap(Class<?> klass, Model bean);
 }
