@@ -1009,4 +1009,13 @@ public interface IExceptionMessage {
 
   static final String INACTIVE_JOURNAL_FOUND =
       /*$$(*/ "The journal : %s is inactive. Thus, the move can't be set to daybook/accounted." /*)*/;
+
+  static final String MASS_UPDATE_SUCCESSFUL =
+      /*$$(*/ "Operation sucessfull : %s record(s) updated." /*)*/;
+
+  static final String MASS_UPDATE_SELECTED_NO_RECORD =
+      /*$$(*/ "No record has been updated. Please make sure the selection can be updated accordingly." /*)*/;
+
+  static final String MASS_UPDATE_ALL_NO_RECORD =
+      /*$$(*/ "No record has been updated. Please make sure the selection can be updated accordingly (e.g. Status different from selected one)." /*)*/;
 }
