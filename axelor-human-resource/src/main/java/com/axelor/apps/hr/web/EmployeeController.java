@@ -28,6 +28,7 @@ import com.axelor.apps.report.engine.ReportSettings;
 import com.axelor.auth.AuthUtils;
 import com.axelor.auth.db.User;
 import com.axelor.exception.AxelorException;
+import com.axelor.exception.service.HandleExceptionResponse;
 import com.axelor.exception.service.TraceBackService;
 import com.axelor.i18n.I18n;
 import com.axelor.inject.Beans;
@@ -37,7 +38,11 @@ import com.axelor.rpc.ActionRequest;
 import com.axelor.rpc.ActionResponse;
 import com.google.inject.Singleton;
 import java.lang.invoke.MethodHandles;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wslite.json.JSONException;
@@ -173,5 +178,45 @@ public class EmployeeController {
     }
 
     response.setReload(true);
+  }
+
+  @SuppressWarnings("unchecked")
+  @HandleExceptionResponse
+  public void getHolidayForEmployees(ActionRequest request, ActionResponse response)
+      throws AxelorException {
+    Map<String, Object> data = request.getData();
+    Object employeeIdsObj = data.get("employeeIds");
+    Object fromDateObj = data.get("fromDate");
+    Object toDateObj = data.get("toDate");
+    if (employeeIdsObj == null || fromDateObj == null || toDateObj == null) {
+      return;
+    }
+
+    List<Long> employeeIdList =
+        ((List<Integer>) employeeIdsObj).stream().map(Long::valueOf).collect(Collectors.toList());
+    LocalDate fromDate = LocalDate.parse(fromDateObj.toString());
+    LocalDate toDate = LocalDate.parse(toDateObj.toString());
+
+    response.setData(
+        Beans.get(EmployeeService.class).getHolidays(employeeIdList, fromDate, toDate));
+  }
+
+  @SuppressWarnings("unchecked")
+  @HandleExceptionResponse
+  public void getDayPlanningHours(ActionRequest request, ActionResponse response)
+      throws AxelorException {
+    Map<String, Object> data = request.getData();
+    Object employeeIdsObj = data.get("employeeIds");
+
+    if (employeeIdsObj == null) {
+      return;
+    }
+
+    List<Long> employeeIdList =
+        ((List<Integer>) employeeIdsObj).stream().map(Long::valueOf).collect(Collectors.toList());
+
+    Map<Long, Map<Integer, Map<Integer, BigDecimal>>> weeklyPlannings =
+        Beans.get(EmployeeService.class).getWeeklyPlannings(employeeIdList);
+    response.setData(weeklyPlannings);
   }
 }

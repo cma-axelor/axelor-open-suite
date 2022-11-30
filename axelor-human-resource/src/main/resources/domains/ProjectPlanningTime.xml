@@ -7,8 +7,17 @@
 
   <entity name="ProjectPlanningTime" cacheable="true">
 
-    <date name="date" column="date_val" title="Date" required="true"/>
+    <date name="date" column="date_val" title="From date" required="true"/>
+    <date name="toDate" title="To date"/>
+
+    <integer name="startOnSelect" title="Start on" default="1"
+      selection="hr.start.on.select"/>
+    <integer name="endOnSelect" title="End on" default="2" selection="hr.start.on.select"/>
+
     <decimal name="plannedHours" title="Planned hours"/>
+    <decimal name="hoursPerMode" title="Planned hours per mode"/>
+    <integer name="modeTypeSelect" title="Planning mode" selection="hr.ppt.mode.type.select"
+      default="0"/>
 
     <many-to-one name="employee" ref="com.axelor.apps.hr.db.Employee" title="Employee"
       required="true"/>

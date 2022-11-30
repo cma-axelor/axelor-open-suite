@@ -26,6 +26,7 @@ import com.axelor.common.ObjectUtils;
 import com.google.inject.Inject;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 public class PublicHolidayService {
@@ -65,6 +66,25 @@ public class PublicHolidayService {
                   weeklyPlanningService.getWorkingDayValueInDays(
                       weeklyPlanning, publicHolidayDay.getDate())));
     }
+    return publicHolidayDays;
+  }
+
+  public List<LocalDate> getPublicHolidayDays(
+      LocalDate fromDate, LocalDate toDate, EventsPlanning publicHolidayPlanning) {
+    List<LocalDate> publicHolidayDays = new ArrayList<>();
+    if (publicHolidayPlanning == null) {
+      return publicHolidayDays;
+    }
+    eventsPlanningLineRepo
+        .all()
+        .filter(
+            "self.eventsPlanning = ?1 AND self.date BETWEEN ?2 AND ?3",
+            publicHolidayPlanning,
+            fromDate,
+            toDate)
+        .fetchStream()
+        .map(EventsPlanningLine::getDate)
+        .forEach(publicHolidayDays::add);
     return publicHolidayDays;
   }
 

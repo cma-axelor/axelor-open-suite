@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<object-views xmlns="http://axelor.com/xml/ns/object-views"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://axelor.com/xml/ns/object-views http://axelor.com/xml/ns/object-views/object-views_5.4.xsd">
+
+  <grid name="project-planning-grid" title="Project planning"
+    model="com.axelor.apps.project.db.ProjectPlanning">
+    <field name="name"/>
+  </grid>
+
+  <form name="project-planning-form" title="Project planning"
+    model="com.axelor.apps.project.db.ProjectPlanning" width="large">
+    <panel name="mainPanel" title="Information" colSpan="12">
+      <field name="name"/>
+      <spacer colSpan="6"/>
+      <field name="employeeSet" widget="TagSelect"/>
+      <field name="projectSet" widget="TagSelect"/>
+      <panel name="actionsPanel" colSpan="12">
+        <button title="Plan by employee" name="openEmployeeEditor"
+          onClick="save,action-project-planning-by-employee-show-editor"/>
+        <button title="Plan by project" name="openProjectEditor"
+          onClick="save,action-project-planning-by-project-show-editor"/>
+      </panel>
+    </panel>
+  </form>
+
+  <action-view name="action-project-planning-by-employee-show-editor"
+    title="Employee planning">
+    <view name="employee-planning/?id={{id}}" type="html"/>
+    <context name="id" expr="eval: id"/>
+  </action-view>
+
+  <action-view name="action-project-planning-by-project-show-editor"
+    title="Project planning">
+    <view name="project-planning/?id={{id}}" type="html"/>
+    <context name="id" expr="eval: id"/>
+  </action-view>
+
+</object-views>

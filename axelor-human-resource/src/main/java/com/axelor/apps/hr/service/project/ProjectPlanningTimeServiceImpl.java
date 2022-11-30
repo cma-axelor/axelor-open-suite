@@ -186,6 +186,7 @@ public class ProjectPlanningTimeServiceImpl implements ProjectPlanningTimeServic
         planningTime.setTimepercent(timePercent);
         planningTime.setEmployee(employee);
         planningTime.setDate(date);
+        planningTime.setToDate(date);
         planningTime.setProject(project);
         planningTime.setIsIncludeInTurnoverForecast(
             (Boolean) datas.get("isIncludeInTurnoverForecast"));

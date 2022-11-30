@@ -18,10 +18,12 @@
 package com.axelor.apps.hr.service.employee;
 
 import com.axelor.apps.base.db.Company;
+import com.axelor.apps.base.db.DayPlanning;
 import com.axelor.apps.base.db.EventsPlanning;
 import com.axelor.apps.base.db.Partner;
 import com.axelor.apps.base.db.WeeklyPlanning;
 import com.axelor.apps.base.service.app.AppBaseService;
+import com.axelor.apps.base.service.publicHoliday.PublicHolidayService;
 import com.axelor.apps.base.service.user.UserServiceImpl;
 import com.axelor.apps.base.service.weeklyplanning.WeeklyPlanningService;
 import com.axelor.apps.hr.db.DPAE;
@@ -35,20 +37,27 @@ import com.axelor.exception.AxelorException;
 import com.axelor.exception.db.repo.TraceBackRepository;
 import com.axelor.i18n.I18n;
 import com.axelor.inject.Beans;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class EmployeeServiceImpl extends UserServiceImpl implements EmployeeService {
 
   @Inject protected WeeklyPlanningService weeklyPlanningService;
+  @Inject protected PublicHolidayService publicHolidayService;
+
+  private final Map<WeeklyPlanning, Map<Integer, Map<Integer, BigDecimal>>> weeklyPlanningCache =
+      new HashMap<>();
 
   public int getLengthOfService(Employee employee, LocalDate refDate) throws AxelorException {
-
     try {
       Period period =
           Period.between(
@@ -144,6 +153,97 @@ public class EmployeeServiceImpl extends UserServiceImpl implements EmployeeServ
                 .computePublicHolidayDays(fromDate, toDate, weeklyPlanning, publicHolidayPlanning));
 
     return duration;
+  }
+
+  @Override
+  public Map<Long, Map<String, List<LocalDate>>> getHolidays(
+      List<Long> employeeIdList, LocalDate fromDate, LocalDate toDate) throws AxelorException {
+    Map<Long, Map<String, List<LocalDate>>> dataMap = new HashMap<>();
+    EmployeeRepository employeeRepository = Beans.get(EmployeeRepository.class);
+    for (Long employeeId : employeeIdList) {
+      Employee employee = employeeRepository.find(employeeId);
+      List<LocalDate> holidayDates =
+          publicHolidayService.getPublicHolidayDays(
+              fromDate, toDate, employee.getPublicHolidayEventsPlanning());
+      dataMap.put(employeeId, ImmutableMap.of("holidays", holidayDates));
+    }
+
+    return dataMap;
+  }
+
+  @Override
+  public Map<Long, Map<Integer, Map<Integer, BigDecimal>>> getWeeklyPlannings(
+      List<Long> employeeIdList) throws AxelorException {
+    Map<Long, Map<Integer, Map<Integer, BigDecimal>>> dataMap = new HashMap<>();
+    EmployeeRepository employeeRepository = Beans.get(EmployeeRepository.class);
+    for (Long employeeId : employeeIdList) {
+      Employee employee = employeeRepository.find(employeeId);
+      dataMap.put(employeeId, getWeeklyPlanning(employee));
+    }
+
+    return dataMap;
+  }
+
+  protected Map<Integer, Map<Integer, BigDecimal>> getWeeklyPlanning(Employee employee)
+      throws AxelorException {
+
+    WeeklyPlanning weeklyPlanning = employee.getWeeklyPlanning();
+    if (weeklyPlanning == null) {
+      weeklyPlanning =
+          Optional.ofNullable(employee.getMainEmploymentContract())
+              .map(EmploymentContract::getPayCompany)
+              .map(Company::getHrConfig)
+              .map(HRConfig::getWeeklyPlanning)
+              .orElse(null);
+    }
+
+    if (weeklyPlanning == null) {
+      throw new AxelorException(
+          employee,
+          TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
+          I18n.get(HumanResourceExceptionMessage.EMPLOYEE_PLANNING),
+          employee.getName());
+    }
+
+    Map<Integer, Map<Integer, BigDecimal>> dataMap = new HashMap<>();
+
+    if (weeklyPlanningCache.get(weeklyPlanning) != null) {
+      return weeklyPlanningCache.get(weeklyPlanning);
+    }
+
+    List<DayPlanning> weekDays = weeklyPlanning.getWeekDays();
+    for (DayPlanning dayPlanning : weekDays) {
+      ImmutableMap<Integer, BigDecimal> planning =
+          ImmutableMap.of(
+              0, dayPlanning.getMorningDuration(), 1, dayPlanning.getAfternoonDuration());
+      DayOfWeek dayOfWeek = getDayOfWeek(dayPlanning);
+      dataMap.put(dayOfWeek.getValue() % 7, planning);
+    }
+
+    weeklyPlanningCache.put(weeklyPlanning, dataMap);
+
+    return dataMap;
+  }
+
+  private DayOfWeek getDayOfWeek(DayPlanning day) {
+    switch (day.getName()) {
+      case "monday":
+        return DayOfWeek.MONDAY;
+      case "tuesday":
+        return DayOfWeek.TUESDAY;
+      case "wednesday":
+        return DayOfWeek.WEDNESDAY;
+      case "thursday":
+        return DayOfWeek.THURSDAY;
+      case "friday":
+        return DayOfWeek.FRIDAY;
+      case "saturday":
+        return DayOfWeek.SATURDAY;
+      case "sunday":
+        return DayOfWeek.SUNDAY;
+      default:
+        return DayOfWeek.SUNDAY;
+    }
   }
 
   public Map<String, String> getSocialNetworkUrl(String name, String firstName) {
