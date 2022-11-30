@@ -22,6 +22,7 @@ import com.axelor.apps.base.db.EventsPlanning;
 import com.axelor.apps.base.db.Partner;
 import com.axelor.apps.base.db.WeeklyPlanning;
 import com.axelor.apps.base.service.app.AppBaseService;
+import com.axelor.apps.base.service.publicHoliday.PublicHolidayService;
 import com.axelor.apps.base.service.user.UserServiceImpl;
 import com.axelor.apps.base.service.weeklyplanning.WeeklyPlanningService;
 import com.axelor.apps.hr.db.DPAE;
@@ -35,17 +36,21 @@ import com.axelor.exception.AxelorException;
 import com.axelor.exception.db.repo.TraceBackRepository;
 import com.axelor.i18n.I18n;
 import com.axelor.inject.Beans;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class EmployeeServiceImpl extends UserServiceImpl implements EmployeeService {
 
   @Inject protected WeeklyPlanningService weeklyPlanningService;
+  @Inject protected PublicHolidayService publicHolidayService;
 
   public int getLengthOfService(Employee employee, LocalDate refDate) throws AxelorException {
 
@@ -144,6 +149,58 @@ public class EmployeeServiceImpl extends UserServiceImpl implements EmployeeServ
                 .computePublicHolidayDays(fromDate, toDate, weeklyPlanning, publicHolidayPlanning));
 
     return duration;
+  }
+
+  @Override
+  public Map<Long, Map<String, List<LocalDate>>> getNonWoringDays(
+      List<Long> employeeIdList, LocalDate fromDate, LocalDate toDate) throws AxelorException {
+    Map<Long, Map<String, List<LocalDate>>> dataMap = new HashMap<>();
+    EmployeeRepository employeeRepository = Beans.get(EmployeeRepository.class);
+    for (Long employeeId : employeeIdList) {
+      Employee employee = employeeRepository.find(employeeId);
+      List<LocalDate> holidayDates =
+          publicHolidayService.getPublicHolidayDays(
+              fromDate, toDate, employee.getPublicHolidayEventsPlanning());
+      List<LocalDate> nonWoringDays = getNonWoringDays(employee, fromDate, toDate);
+      Map<String, List<LocalDate>> value =
+          ImmutableMap.of("holidays", holidayDates, "nonWorkingDays", nonWoringDays);
+      dataMap.put(employeeId, value);
+    }
+
+    return dataMap;
+  }
+
+  protected List<LocalDate> getNonWoringDays(
+      Employee employee, LocalDate fromDate, LocalDate toDate) throws AxelorException {
+    List<LocalDate> nonWorkingDays = new ArrayList<>();
+    LocalDate date = fromDate;
+
+    Company company = employee.getMainEmploymentContract().getPayCompany();
+
+    WeeklyPlanning weeklyPlanning = employee.getWeeklyPlanning();
+    if (weeklyPlanning == null) {
+      HRConfig conf = company.getHrConfig();
+      if (conf != null) {
+        weeklyPlanning = conf.getWeeklyPlanning();
+      }
+    }
+
+    if (weeklyPlanning == null) {
+      throw new AxelorException(
+          employee,
+          TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
+          I18n.get(HumanResourceExceptionMessage.EMPLOYEE_PLANNING),
+          employee.getName());
+    }
+    while (!date.isAfter(toDate)) {
+      double workingDayValueInDays =
+          weeklyPlanningService.getWorkingDayValueInDays(weeklyPlanning, date);
+      if (workingDayValueInDays == 0) {
+        nonWorkingDays.add(date);
+      }
+      date = date.plusDays(1);
+    }
+    return nonWorkingDays;
   }
 
   public Map<String, String> getSocialNetworkUrl(String name, String firstName) {

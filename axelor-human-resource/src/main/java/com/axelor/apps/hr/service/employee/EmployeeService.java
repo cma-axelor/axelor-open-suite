@@ -24,6 +24,7 @@ import com.axelor.exception.AxelorException;
 import com.google.inject.persist.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 public interface EmployeeService extends UserService {
@@ -40,4 +41,7 @@ public interface EmployeeService extends UserService {
   /** Generates a new {@link DPAE} for given {@link Employee} and returns its id. */
   @Transactional(rollbackOn = {Exception.class})
   Long generateNewDPAE(Employee employee) throws AxelorException;
+
+  Map<Long, Map<String, List<LocalDate>>> getNonWoringDays(
+      List<Long> employeeIdList, LocalDate fromDate, LocalDate toDate) throws AxelorException;
 }
