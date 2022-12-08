@@ -22,6 +22,24 @@
     <time name="afternoonFrom" title="2nd Period From"/>
     <time name="afternoonTo" title="To"/>
     <integer name="sequence" title="Seq."/>
+    <decimal name="morningDuration" title="Morning duration">
+    	<![CDATA[
+		if(morningFrom == null && morningTo == null) {
+			return BigDecimal.ZERO;
+		}
+		float hours = (float)java.time.Duration.between(morningFrom, morningTo).getSeconds()/3600;
+		return new BigDecimal(hours).setScale(2, BigDecimal.ROUND_HALF_EVEN);
+       ]]>
+    </decimal>
+    <decimal name="afternoonDuration" title="Afternoon duration">
+    	<![CDATA[
+		if(afternoonFrom == null && afternoonTo == null) {
+			return BigDecimal.ZERO;
+		}
+		float hours = (float)java.time.Duration.between(afternoonFrom, afternoonTo).getSeconds()/3600;
+		return new BigDecimal(hours).setScale(2, BigDecimal.ROUND_HALF_EVEN);
+       ]]>
+    </decimal>
   </entity>
 
 </domain-models>

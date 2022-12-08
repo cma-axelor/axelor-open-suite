@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<object-views xmlns="http://axelor.com/xml/ns/object-views"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://axelor.com/xml/ns/object-views http://axelor.com/xml/ns/object-views/object-views_5.4.xsd">
+
+  <grid name="project-planning-grid" title="Project planning"
+    model="com.axelor.apps.project.db.ProjectPlanning">
+    <field name="employeeSet"/>
+    <field name="projectSet"/>
+  </grid>
+
+  <form name="project-planning-form" title="Project planning"
+    model="com.axelor.apps.project.db.ProjectPlanning">
+    <panel name="mainPanel">
+      <field name="employeeSet" widget="TagSelect"/>
+      <field name="projectSet" widget="TagSelect"/>
+    </panel>
+  </form>
+
+</object-views>

@@ -640,6 +640,14 @@
       expr="call:com.axelor.apps.hr.service.timesheet.TimesheetService:getContextProjectIds()"/>
   </action-view>
 
+  <menuitem name="project-project-planning" parent="menu-project-root"
+    title="Project planning" order="30" action="project.project.planning"/>
+  <action-view name="project.project.planning" title="Project planning"
+    model="com.axelor.apps.project.db.ProjectPlanning">
+    <view type="grid" name="project-planning-grid"/>
+    <view type="form" name="project-planning-form"/>
+  </action-view>
+
   <!-- Top Menus -->
 
   <menuitem name="top-menu-hr" title="HR" order="4" top="true" left="false"

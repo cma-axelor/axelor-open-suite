@@ -42,6 +42,9 @@ public interface EmployeeService extends UserService {
   @Transactional(rollbackOn = {Exception.class})
   Long generateNewDPAE(Employee employee) throws AxelorException;
 
-  Map<Long, Map<String, List<LocalDate>>> getNonWoringDays(
+  public Map<Long, Map<Integer, Map<Integer, BigDecimal>>> getWeeklyPlannings(
+      List<Long> employeeIdList) throws AxelorException;
+
+  public Map<Long, Map<String, List<LocalDate>>> getHolidays(
       List<Long> employeeIdList, LocalDate fromDate, LocalDate toDate) throws AxelorException;
 }

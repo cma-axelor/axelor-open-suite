@@ -37,7 +37,9 @@
       <field name="employee" onSelect="action-project-planning-time-attrs-project-domain"
         canEdit="false" onChange="action-project-planning-time-attrs-employee-change"/>
       <field name="date"/>
-      <spacer name="dateSpacer" colSpan="6"/>
+      <field name="startOnSelect"/>
+      <field name="toDate"/>
+      <field name="endOnSelect"/>
       <field name="startTime" requiredIf="endTime"
         onChange="action-project-planning-time-record-start-time-onchange,action-project-planning-time-validate-check-start-time-end-time"/>
       <field name="endTime" requiredIf="startTime"
@@ -160,7 +162,7 @@
     <attribute name="value" for="product" expr="eval: __user__.employee.product"
       if="_project &amp;&amp; __user__ in __repo__(Project).find(_project.id).membersUserSet &amp;&amp; __user__.employee"/>
 
-    <attribute name="value" for="date" expr="#{__config__.date}"/>
+    <attribute name="value" for="date,fromDate,toDate" expr="#{__config__.date}"/>
     <attribute name="value" for="employee" expr="eval: _employee" if="_employee"/>
     <attribute name="value" for="project" expr="eval:__parent__?.project"
       if="__parent__?._model == 'com.axelor.apps.project.db.ProjectTask'"/>

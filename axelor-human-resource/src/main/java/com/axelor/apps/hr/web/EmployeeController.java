@@ -38,6 +38,7 @@ import com.axelor.rpc.ActionRequest;
 import com.axelor.rpc.ActionResponse;
 import com.google.inject.Singleton;
 import java.lang.invoke.MethodHandles;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -181,7 +182,7 @@ public class EmployeeController {
 
   @SuppressWarnings("unchecked")
   @HandleExceptionResponse
-  public void getWorkingDaysForEmployees(ActionRequest request, ActionResponse response)
+  public void getHolidayForEmployees(ActionRequest request, ActionResponse response)
       throws AxelorException {
     Map<String, Object> data = request.getData();
     Object employeeIdsObj = data.get("employeeIds");
@@ -196,9 +197,26 @@ public class EmployeeController {
     LocalDate fromDate = LocalDate.parse(fromDateObj.toString());
     LocalDate toDate = LocalDate.parse(toDateObj.toString());
 
-    Map<Long, Map<String, List<LocalDate>>> nonWoringDays =
-        Beans.get(EmployeeService.class).getNonWoringDays(employeeIdList, fromDate, toDate);
+    response.setData(
+        Beans.get(EmployeeService.class).getHolidays(employeeIdList, fromDate, toDate));
+  }
 
-    response.setData(nonWoringDays);
+  @SuppressWarnings("unchecked")
+  @HandleExceptionResponse
+  public void getDayPlanningHours(ActionRequest request, ActionResponse response)
+      throws AxelorException {
+    Map<String, Object> data = request.getData();
+    Object employeeIdsObj = data.get("employeeIds");
+
+    if (employeeIdsObj == null) {
+      return;
+    }
+
+    List<Long> employeeIdList =
+        ((List<Integer>) employeeIdsObj).stream().map(Long::valueOf).collect(Collectors.toList());
+
+    Map<Long, Map<Integer, Map<Integer, BigDecimal>>> weeklyPlannings =
+        Beans.get(EmployeeService.class).getWeeklyPlannings(employeeIdList);
+    response.setData(weeklyPlannings);
   }
 }
