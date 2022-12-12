@@ -53,8 +53,8 @@ public class EmployeeServiceImpl extends UserServiceImpl implements EmployeeServ
   @Inject protected WeeklyPlanningService weeklyPlanningService;
   @Inject protected PublicHolidayService publicHolidayService;
 
-  private static final Map<WeeklyPlanning, Map<Integer, Map<Integer, BigDecimal>>>
-      WEEKLY_PLAN_CACHE = new HashMap<>();
+  private final Map<WeeklyPlanning, Map<Integer, Map<Integer, BigDecimal>>> weeklyPlanningCache =
+      new HashMap<>();
 
   public int getLengthOfService(Employee employee, LocalDate refDate) throws AxelorException {
     try {
@@ -206,8 +206,8 @@ public class EmployeeServiceImpl extends UserServiceImpl implements EmployeeServ
 
     Map<Integer, Map<Integer, BigDecimal>> dataMap = new HashMap<>();
 
-    if (WEEKLY_PLAN_CACHE.get(weeklyPlanning) != null) {
-      return WEEKLY_PLAN_CACHE.get(weeklyPlanning);
+    if (weeklyPlanningCache.get(weeklyPlanning) != null) {
+      return weeklyPlanningCache.get(weeklyPlanning);
     }
 
     List<DayPlanning> weekDays = weeklyPlanning.getWeekDays();
@@ -219,7 +219,7 @@ public class EmployeeServiceImpl extends UserServiceImpl implements EmployeeServ
       dataMap.put(dayOfWeek.getValue() % 7, planning);
     }
 
-    WEEKLY_PLAN_CACHE.put(weeklyPlanning, dataMap);
+    weeklyPlanningCache.put(weeklyPlanning, dataMap);
 
     return dataMap;
   }
