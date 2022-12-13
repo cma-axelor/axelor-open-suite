@@ -10,11 +10,20 @@
   </grid>
 
   <form name="project-planning-form" title="Project planning"
-    model="com.axelor.apps.project.db.ProjectPlanning">
+    model="com.axelor.apps.project.db.ProjectPlanning" width="large">
     <panel name="mainPanel">
       <field name="employeeSet" widget="TagSelect"/>
       <field name="projectSet" widget="TagSelect"/>
     </panel>
+    <panel name="actionsPanel" colSpan="12">
+      <button title="Plan" name="openEditor"
+        onClick="save,action-project-planning-show-editor"/>
+    </panel>
   </form>
+
+  <action-view name="action-project-planning-show-editor" title="Project planning">
+    <view name="employee-planning?id={{id}}" type="html"/>
+    <context name="id" expr="eval: id"/>
+  </action-view>
 
 </object-views>
