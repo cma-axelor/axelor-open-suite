@@ -22,7 +22,7 @@
   </form>
 
   <action-view name="action-project-planning-show-editor" title="Project planning">
-    <view name="employee-planning?id={{id}}" type="html"/>
+    <view name="employee-planning/?id={{id}}" type="html"/>
     <context name="id" expr="eval: id"/>
   </action-view>
 
