@@ -5,8 +5,9 @@
 
   <module name="project" package="com.axelor.apps.project.db"/>
 
-  <entity name="ProjectPlanning" cacheable="true">
+  <entity name="ProjectPlanning">
 
+    <string name="name" required="true"/>
     <many-to-many name="employeeSet" ref="com.axelor.apps.hr.db.Employee"
       title="Employees" required="true"/>
     <many-to-many name="projectSet" ref="com.axelor.apps.project.db.Project"

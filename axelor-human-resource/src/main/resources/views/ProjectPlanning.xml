@@ -5,24 +5,34 @@
 
   <grid name="project-planning-grid" title="Project planning"
     model="com.axelor.apps.project.db.ProjectPlanning">
-    <field name="employeeSet"/>
-    <field name="projectSet"/>
+    <field name="name"/>
   </grid>
 
   <form name="project-planning-form" title="Project planning"
     model="com.axelor.apps.project.db.ProjectPlanning" width="large">
-    <panel name="mainPanel">
+    <panel name="mainPanel" title="Information" colSpan="12">
+      <field name="name"/>
+      <spacer colSpan="6"/>
       <field name="employeeSet" widget="TagSelect"/>
       <field name="projectSet" widget="TagSelect"/>
-    </panel>
-    <panel name="actionsPanel" colSpan="12">
-      <button title="Plan" name="openEditor"
-        onClick="save,action-project-planning-show-editor"/>
+      <panel name="actionsPanel" colSpan="12">
+        <button title="Plan by employee" name="openEmployeeEditor"
+          onClick="save,action-project-planning-by-employee-show-editor"/>
+        <button title="Plan by project" name="openProjectEditor"
+          onClick="save,action-project-planning-by-project-show-editor"/>
+      </panel>
     </panel>
   </form>
 
-  <action-view name="action-project-planning-show-editor" title="Project planning">
+  <action-view name="action-project-planning-by-employee-show-editor"
+    title="Employee planning">
     <view name="employee-planning/?id={{id}}" type="html"/>
+    <context name="id" expr="eval: id"/>
+  </action-view>
+
+  <action-view name="action-project-planning-by-project-show-editor"
+    title="Project planning">
+    <view name="project-planning/?id={{id}}" type="html"/>
     <context name="id" expr="eval: id"/>
   </action-view>
 

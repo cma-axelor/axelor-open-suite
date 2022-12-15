@@ -6,6 +6,8 @@
   <grid name="project-planning-time-grid" title="Planned time"
     model="com.axelor.apps.project.db.ProjectPlanningTime">
     <field name="plannedHours"/>
+    <field name="hoursPerMode"/>
+    <field name="modeTypeSelect"/>
     <field name="project"/>
     <field name="projectTask"/>
     <field name="employee"/>
@@ -32,6 +34,8 @@
     <panel name="mainPanel">
       <field name="plannedHours"
         onChange="action-project-planning-time-record-planned-hours-onchange,action-project-planning-time-validate-check-start-time-end-time"/>
+      <field name="hoursPerMode"/>
+      <field name="modeTypeSelect"/>
       <field name="project" readonly="true"/>
       <field name="projectTask" domain="self.project = :project" canEdit="false"/>
       <field name="employee" onSelect="action-project-planning-time-attrs-project-domain"

@@ -15,6 +15,9 @@
     <integer name="endOnSelect" title="End on" default="2" selection="hr.start.on.select"/>
 
     <decimal name="plannedHours" title="Planned hours"/>
+    <decimal name="hoursPerMode" title="Hours per mode"/>
+    <integer name="modeTypeSelect" title="Planning mode" selection="hr.ppt.mode.type.select"
+      default="0"/>
 
     <many-to-one name="employee" ref="com.axelor.apps.hr.db.Employee" title="Employee"
       required="true"/>

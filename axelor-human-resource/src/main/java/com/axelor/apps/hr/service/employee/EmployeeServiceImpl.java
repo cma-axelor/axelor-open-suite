@@ -47,6 +47,7 @@ import java.time.Period;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class EmployeeServiceImpl extends UserServiceImpl implements EmployeeService {
 
@@ -186,14 +187,14 @@ public class EmployeeServiceImpl extends UserServiceImpl implements EmployeeServ
   protected Map<Integer, Map<Integer, BigDecimal>> getWeeklyPlanning(Employee employee)
       throws AxelorException {
 
-    Company company = employee.getMainEmploymentContract().getPayCompany();
-
     WeeklyPlanning weeklyPlanning = employee.getWeeklyPlanning();
     if (weeklyPlanning == null) {
-      HRConfig conf = company.getHrConfig();
-      if (conf != null) {
-        weeklyPlanning = conf.getWeeklyPlanning();
-      }
+      weeklyPlanning =
+          Optional.ofNullable(employee.getMainEmploymentContract())
+              .map(EmploymentContract::getPayCompany)
+              .map(Company::getHrConfig)
+              .map(HRConfig::getWeeklyPlanning)
+              .orElse(null);
     }
 
     if (weeklyPlanning == null) {
