@@ -228,7 +228,7 @@
   
   <selection name="hr.ppt.mode.type.select">
     <option value="1">Half day</option>
-    <option value="2">Week</option>
+    <option value="2">Day</option>
     <option value="3">Month</option>
   </selection>
 
