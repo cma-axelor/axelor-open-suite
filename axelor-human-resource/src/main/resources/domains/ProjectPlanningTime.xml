@@ -15,7 +15,7 @@
     <integer name="endOnSelect" title="End on" default="2" selection="hr.start.on.select"/>
 
     <decimal name="plannedHours" title="Planned hours"/>
-    <decimal name="hoursPerMode" title="Hours per mode"/>
+    <decimal name="hoursPerMode" title="Planned hours per mode"/>
     <integer name="modeTypeSelect" title="Planning mode" selection="hr.ppt.mode.type.select"
       default="0"/>
 
