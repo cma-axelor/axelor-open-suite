@@ -8,7 +8,6 @@
   <entity name="Project">
     <string name="name" required="true"/>
     <string name="code" title="Code"/>
-    <string name="fullName" namecolumn="true" title="Name"/>
   </entity>
 
 </domain-models>
