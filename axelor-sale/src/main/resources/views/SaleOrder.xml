@@ -236,6 +236,9 @@
         onClick="save,action-sale-order-view-reports-wizard"/>
       <button name="sendByEmailBtn" title="Send email" icon="fa-envelope"
         onClick="action-send-by-email-with-template"/>
+      <button name="carboneIoReportBtn" title="Carbone Report" icon="fa-print"
+        hideIf="clientPartner == null" readonlyIf="!id"
+        onClick="save,action-method-carbone-io-reports"/>
     </toolbar>
     <menubar>
       <menu name="saleOrderToolsMenu" title="Tools">
@@ -2208,6 +2211,10 @@
     name="action-sale-order-method-update-product-qty-with-pack-header-qty">
     <call method="updateProductQtyWithPackHeaderQty"
       class="com.axelor.apps.sale.web.SaleOrderController"/>
+  </action-method>
+
+  <action-method name="action-method-carbone-io-reports">
+    <call method="printSaleOrder" class="com.axelor.apps.sale.web.CarboneIOPrintController"/>
   </action-method>
 
   <action-attrs name="action-sale-order-attrs-readonly-timetable">

@@ -48,6 +48,8 @@ import com.axelor.apps.sale.service.SaleOrderDomainServiceImpl;
 import com.axelor.apps.sale.service.SaleOrderLineSaleRepository;
 import com.axelor.apps.sale.service.app.AppSaleService;
 import com.axelor.apps.sale.service.app.AppSaleServiceImpl;
+import com.axelor.apps.sale.service.carboneio.CarboneIoPrintService;
+import com.axelor.apps.sale.service.carboneio.CarboneIoPrintServiceImpl;
 import com.axelor.apps.sale.service.config.SaleConfigService;
 import com.axelor.apps.sale.service.config.SaleConfigServiceImpl;
 import com.axelor.apps.sale.service.configurator.ConfiguratorCreatorImportService;
@@ -117,5 +119,7 @@ public class SaleModule extends AxelorModule {
     bind(SaleOrderDomainService.class).to(SaleOrderDomainServiceImpl.class);
     bind(SaleOrderMergingViewService.class).to(SaleOrderMergingViewServiceImpl.class);
     bind(SaleOrderMergingService.class).to(SaleOrderMergingServiceImpl.class);
+
+    bind(CarboneIoPrintService.class).to(CarboneIoPrintServiceImpl.class);
   }
 }

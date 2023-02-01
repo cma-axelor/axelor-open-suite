@@ -15,4 +15,6 @@ axelor {
 
 dependencies {
 	api project(":modules:axelor-crm")
+	
+	implementation 'org.apache.httpcomponents:httpmime:4.3.1'
 }

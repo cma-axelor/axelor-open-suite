@@ -28,6 +28,8 @@
       <field name="isEnableCalculationEntireQuotationUsingPricing" widget="boolean-switch"
         showIf="enablePricingScale"/>
       <field name="considerZeroCost" widget="boolean-switch"/>
+      <field name="carboneSaleTemplate" widget="binary-link"/>
+      <field name="carboneOutputFormat"/>
     </panel>
     <panel name="actionsPanel">
       <button name="generateSaleConfigurationsBtn" colSpan="4"
