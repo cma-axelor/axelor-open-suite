@@ -13,6 +13,8 @@
         onClick="action-base-general-export-objects"/>
       <button name="remindTimesheetsBtn" title="Timesheets Reminder"
         onClick="action-method-general-remind-timesheet"/>
+      <button name="remindTimesheetsBtn" title="Export menus"
+        onClick="com.axelor.apps.base.service.ABCAnalysisServiceImpl:printMenus"/>
     </toolbar>
     <panel name="testingPanel" title="Testing"
       if="com.axelor.app.AppSettings.get().get('application.mode') != 'prod'">

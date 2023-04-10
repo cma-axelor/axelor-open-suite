@@ -35,19 +35,37 @@ import com.axelor.apps.base.exceptions.BaseExceptionMessage;
 import com.axelor.apps.base.report.IReport;
 import com.axelor.apps.base.service.administration.SequenceService;
 import com.axelor.apps.report.engine.ReportSettings;
+import com.axelor.common.ObjectUtils;
 import com.axelor.db.JPA;
 import com.axelor.db.Query;
 import com.axelor.i18n.I18n;
+import com.axelor.inject.Beans;
+import com.axelor.meta.CallMethod;
+import com.axelor.meta.db.MetaMenu;
+import com.axelor.meta.db.repo.MetaMenuRepository;
+import com.axelor.rpc.ActionRequest;
+import com.axelor.rpc.ActionResponse;
 import com.axelor.utils.StringTool;
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
+import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BinaryOperator;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.apache.commons.io.FileUtils;
 
 public class ABCAnalysisServiceImpl implements ABCAnalysisService {
   protected ABCAnalysisLineRepository abcAnalysisLineRepository;
@@ -106,6 +124,57 @@ public class ABCAnalysisServiceImpl implements ABCAnalysisService {
     abcAnalysisClass.setQty(qty);
 
     return abcAnalysisClass;
+  }
+
+  @CallMethod
+  public void printMenus(ActionRequest request, ActionResponse response) {
+    Map<String, MetaMenu> rootMenus =
+        Beans.get(MetaMenuRepository.class).all()
+            .filter("self.parent IS null AND (self.hidden IS FALSE or self.hidden IS NULL) AND self.top IS FALSE")
+            .order("order").fetch().stream()
+            .collect(
+                Collectors.toMap(
+                    MetaMenu::getName,
+                    Function.identity(),
+                    BinaryOperator.maxBy(Comparator.comparing(MetaMenu::getPriority)),
+                    LinkedHashMap::new));
+    int indent = 1;
+    File file = new File("/home/axelor/Documents/test.yml");
+    for (Entry<String, MetaMenu> metaMenu : rootMenus.entrySet()) {
+      printMenus(metaMenu.getValue(), indent, file);
+    }
+  }
+
+  public void printMenus(MetaMenu rootMenu, int indent, File file) {
+    StringBuilder line = new StringBuilder();
+    for (int i = 0; i < indent; i++) {
+      line.append("\t");
+    }
+    String format =
+        String.format("%s(%s)(%s)", rootMenu.getTitle(), rootMenu.getOrder(), rootMenu.getModule());
+    line.append(format + "\n");
+    Map<String, MetaMenu> children =
+        Beans.get(MetaMenuRepository.class).all().order("order")
+            .filter("self.parent = :parent AND (self.hidden IS FALSE or self.hidden IS NULL)")
+            .bind("parent", rootMenu).order("-order").fetch().stream()
+            .collect(
+                Collectors.toMap(
+                    MetaMenu::getName,
+                    Function.identity(),
+                    BinaryOperator.maxBy(Comparator.comparing(MetaMenu::getPriority)),
+                    LinkedHashMap::new));
+    try {
+      FileUtils.write(file, line.toString(), StandardCharsets.UTF_8, true);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    if (ObjectUtils.isEmpty(children)) {
+      return;
+    }
+    ++indent;
+    for (Entry<String, MetaMenu> metaMenu : children.entrySet()) {
+      printMenus(metaMenu.getValue(), indent, file);
+    }
   }
 
   @Override
