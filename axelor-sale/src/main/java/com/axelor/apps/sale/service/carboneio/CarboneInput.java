@@ -18,7 +18,8 @@
  */
 package com.axelor.apps.sale.service.carboneio;
 
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class CarboneInput {
@@ -26,7 +27,7 @@ public class CarboneInput {
   private String convertTo;
   private String lang = "en";
   private String reportName;
-  private Map<String, Object> data = new HashMap<>();
+  private List<Map<String, Object>> data = new ArrayList<>();
 
   public String getConvertTo() {
     return convertTo;
@@ -52,11 +53,11 @@ public class CarboneInput {
     this.reportName = reportName;
   }
 
-  public Map<String, Object> getData() {
+  public List<Map<String, Object>> getData() {
     return data;
   }
 
-  public void setData(Map<String, Object> data) {
+  public void setData(List<Map<String, Object>> data) {
     this.data = data;
   }
 }

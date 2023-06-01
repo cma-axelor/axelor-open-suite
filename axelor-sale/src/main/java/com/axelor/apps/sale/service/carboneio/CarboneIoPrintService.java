@@ -19,13 +19,14 @@
 package com.axelor.apps.sale.service.carboneio;
 
 import com.axelor.apps.base.AxelorException;
-import com.axelor.apps.sale.db.SaleOrder;
+import com.axelor.db.Model;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 
 public interface CarboneIoPrintService {
 
-  CarboneInput prepareSaleOrderData(SaleOrder saleOrder);
+  Path print(List<Model> models) throws AxelorException, IOException;
 
-  Path print(SaleOrder saleOrder) throws AxelorException, IOException;
+  CarboneInput prepareData(List<Model> models);
 }

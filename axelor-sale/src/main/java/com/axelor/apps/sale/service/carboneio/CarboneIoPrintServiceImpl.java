@@ -22,11 +22,11 @@ import com.axelor.app.AppSettings;
 import com.axelor.apps.base.AxelorException;
 import com.axelor.apps.base.db.repo.TraceBackRepository;
 import com.axelor.apps.report.engine.ReportSettings;
-import com.axelor.apps.sale.db.SaleOrder;
-import com.axelor.apps.sale.db.repo.SaleOrderRepository;
 import com.axelor.apps.sale.service.app.AppSaleService;
 import com.axelor.apps.sale.service.saleorder.SaleOrderService;
 import com.axelor.common.StringUtils;
+import com.axelor.db.JPA;
+import com.axelor.db.Model;
 import com.axelor.db.mapper.Mapper;
 import com.axelor.i18n.I18n;
 import com.axelor.meta.MetaFiles;
@@ -38,8 +38,10 @@ import com.google.inject.Inject;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -57,28 +59,23 @@ public class CarboneIoPrintServiceImpl implements CarboneIoPrintService {
   protected static final String CARBONEIO_SERVER_URL = "carboneio.server.url";
 
   protected SaleOrderService saleOrderService;
-  protected SaleOrderRepository saleOrderRepository;
   protected ObjectMapper mapper;
   protected AppSaleService appSaleService;
 
   @Inject
   public CarboneIoPrintServiceImpl(
-      SaleOrderService saleOrderService,
-      SaleOrderRepository saleOrderRepository,
-      ObjectMapper mapper,
-      AppSaleService appSaleService) {
+      SaleOrderService saleOrderService, ObjectMapper mapper, AppSaleService appSaleService) {
     this.saleOrderService = saleOrderService;
-    this.saleOrderRepository = saleOrderRepository;
     this.mapper = mapper;
     this.appSaleService = appSaleService;
   }
 
   @Override
-  public Path print(SaleOrder saleOrder) throws AxelorException {
+  public Path print(List<Model> models) throws AxelorException {
 
     try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
 
-      CarboneInput input = prepareSaleOrderData(saleOrder);
+      CarboneInput input = prepareData(models);
 
       HttpResponse httpresponse = executeRequest(httpclient, input);
 
@@ -129,9 +126,9 @@ public class CarboneIoPrintServiceImpl implements CarboneIoPrintService {
   }
 
   @Override
-  public CarboneInput prepareSaleOrderData(SaleOrder saleOrder) {
+  public CarboneInput prepareData(List<Model> models) {
     CarboneInput input = new CarboneInput();
-    input.setReportName(saleOrder.getClass().getSimpleName());
+    input.setReportName(models.get(0).getClass().getSimpleName());
     String carboneOutputFormat =
         Optional.ofNullable(appSaleService.getAppSale())
             .map(AppSale::getCarboneOutputFormat)
@@ -139,11 +136,15 @@ public class CarboneIoPrintServiceImpl implements CarboneIoPrintService {
             .orElse(ReportSettings.FORMAT_PDF);
     input.setConvertTo(carboneOutputFormat);
     input.setLang("en");
-    input.setData(getSaleOrderData(saleOrder));
+    input.setData(getSaleOrderData(models));
     return input;
   }
 
-  protected Map<String, Object> getSaleOrderData(SaleOrder saleOrder) {
-    return Mapper.toMap(saleOrderRepository.find(saleOrder.getId()));
+  protected List<Map<String, Object>> getSaleOrderData(List<Model> models) {
+    return models.stream().map(this::getDataMap).collect(Collectors.toList());
+  }
+
+  protected Map<String, Object> getDataMap(Model model) {
+    return Mapper.toMap(JPA.find(model.getClass(), model.getId()));
   }
 }
