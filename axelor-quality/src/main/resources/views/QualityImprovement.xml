@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <object-views xmlns="http://axelor.com/xml/ns/object-views"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://axelor.com/xml/ns/object-views http://axelor.com/xml/ns/object-views/object-views_6.1.xsd">
+  xsi:schemaLocation="http://axelor.com/xml/ns/object-views http://axelor.com/xml/ns/object-views/object-views_5.2.xsd">
 
   <grid name="quality-improvement-grid" title="Quality improvements"
     model="com.axelor.apps.quality.db.QualityImprovement" orderBy="sequence">
@@ -11,9 +11,10 @@
     <field name="qiStatus"/>
   </grid>
 
-  <form name="quality-improvement-form" title="Quality improvement"
+  <form name="quality-improvement-form" title="Quality improvement" width="large"
     model="com.axelor.apps.quality.db.QualityImprovement"
-    onNew="action-quality-improvement-record-on-new" width="large">
+    onNew="action-quality-improvement-record-on-new,action-quality-improvement-attrs-set-defaults"
+    onLoad="action-quality-improvement-attrs-set-defaults,action-quality-improvement-attrs-set-dummy-field-values">
     <panel name="mainPanel">
       <field name="sequence"/>
       <field name="qiStatus" grid-view="qi-status-grid" form-view="qi-status-form"/>
@@ -22,9 +23,92 @@
       <field name="qiDetection" grid-view="qi-detection-grid" form-view="qi-detection-form"
         onSelect="action-quality-improvement-attrs-set-qi-detection-domain"/>
     </panel>
-    <panel-tabs name="mainPanelTab" hidden="true" showIf="id">
-      <panel name="identificationPanel" title="Common"/>
+
+    <panel-tabs name="mainPanelTab" showIf="id">
+      <panel name="identificationPanel" title="Common">
+        <field name="qiIdentification" showTitle="false" colSpan="12" canSelect="false"
+          canView="false" canRemove="false">
+          <editor>
+            <panel name="nonIntPanel" showIf="$get('qi.qiDetection.origin') != 2" colSpan="12">
+              <field name="partner" requiredIf="$get('qi.qiDetection.origin') != 2"
+                onSelect="action-quality-improvement-attrs-set-partner-domain"
+                onChange="action-quality-improvement-group-partner-on-change"/>
+              <field name="contact"
+                domain="self.isContact = true AND self.mainPartner = :partner"/>
+            </panel>
+            <panel name="intPanel" showIf="$get('qi.qiDetection.origin') == 2" colSpan="12">
+              <field name="detectedByInternal" requiredIf="$get('qi.qiDetection.origin') == 2"
+                onSelect="action-qi-identification-attrs-set-detected-by-internal-domain"/>
+            </panel>
+
+            <panel name="orderPanel" colSpan="12"
+              showIf="$get('qi.qiDetection.origin') != 2 &amp;&amp; partner">
+              <field name="customerSaleOrder" showIf="$get('qi.qiDetection.origin') == 3"
+                domain="self.clientPartner = :partner"
+                onChange="action-quality-improvement-group-customer-sale-order-on-change"/>
+              <field name="customerSaleOrderLine" showIf="$get('qi.qiDetection.origin') == 3"
+                domain="self.saleOrder = :customerSaleOrder"
+                onChange="action-quality-improvement-group-customer-sale-order-line-on-change"/>
+              <field name="supplierPurchaseOrder" showIf="$get('qi.qiDetection.origin') == 1"
+                domain="self.supplierPartner = :partner"
+                onChange="action-quality-improvement-group-supplier-purchase-order-on-change"/>
+              <field name="supplierPurchaseOrderLine"
+                showIf="$get('qi.qiDetection.origin') == 1"
+                domain="self.purchaseOrder = :supplierPurchaseOrder"
+                onChange="action-quality-improvement-group-supplier-purchase-order-line-on-change"/>
+              <field name="stockMove" showIf="customerSaleOrder || supplierPurchaseOrder"
+                onSelect="action-quality-improvement-attrs-set-stock-move-domain"
+                onChange="action-quality-improvement-group-stock-move-on-change"/>
+              <field name="stockMoveLine" showIf="customerSaleOrder || supplierPurchaseOrder"
+                onSelect="action-quality-improvement-attrs-set-stock-move-line-domain"
+                onChange="action-quality-improvement-attrs-set-dummy-field-values"/>
+            </panel>
+            <field name="documentReference" colSpan="12"/>
+
+            <panel name="manufOrderPanel" colSpan="12">
+              <field name="manufOrder"
+                onChange="action-quality-improvement-group-manuf-order-on-change"/>
+              <field name="operationOrder" showIf="manufOrder != null"
+                onSelect="action-quality-improvement-attrs-set-operation-order-domain"/>
+              <field name="toConsumeProdProduct" showIf="manufOrder != null"
+                onSelect="action-quality-improvement-attrs-set-to-consume-prod-product-domain"/>
+              <field name="consumedProdProduct" showIf="manufOrder != null"
+                onSelect="action-quality-improvement-attrs-set-consume-prod-product-domain"/>
+            </panel>
+
+            <field name="product"
+              readonlyIf="customerSaleOrderLine != null || supplierPurchaseOrderLine != null || stockMoveLine != null"
+              colSpan="6"/>
+            <field name="nonConformingQuantity"/>
+            <field name="qualityControl"/>
+            <field name="writtenBy"
+              onChange="action-quality-improvement-record-written-by-on-change-set-values"/>
+            <field name="writtenOn" readonly="true"/>
+
+            <panel name="hiddenPanel" hidden="true">
+              <field name="qi"/>
+              <field name="qi.qiDetection"/>
+              <field name="qi.qiDetection.origin"/>
+              <field name="$dummyPartner" type="many-to-one"
+                x-target="com.axelor.apps.base.db.Partner"/>
+              <field name="$dummyCustomerSaleOrder" type="many-to-one"
+                x-target="com.axelor.apps.sale.db.SaleOrder"/>
+              <field name="$dummyCustomerSaleOrderLine" type="many-to-one"
+                x-target="com.axelor.apps.sale.db.SaleOrderLine"/>
+              <field name="$dummySupplierPurchaseOrder" type="many-to-one"
+                x-target="com.axelor.apps.purchase.db.PurchaseOrder"/>
+              <field name="$dummySupplierPurchaseOrderLine" type="many-to-one"
+                x-target="com.axelor.apps.purchase.db.PurchaseOrderLine"/>
+              <field name="$dummyStockMove" type="many-to-one"
+                x-target="com.axelor.apps.stock.db.StockMove"/>
+              <field name="$dummyStockMoveLine" type="many-to-one"
+                x-target="com.axelor.apps.stock.db.StockMoveLine"/>
+            </panel>
+          </editor>
+        </field>
+      </panel>
     </panel-tabs>
+
     <panel-mail name="mailPanel">
       <mail-messages limit="4"/>
       <mail-followers/>
@@ -60,6 +144,280 @@
     <attribute name="domain" for="qiDetection"
       expr="eval: &quot; self.origin = ${qiDetection?.origin} &quot;" if="id != null"/>
     <attribute name="domain" for="qiDetection" expr="eval: null" if="id == null"/>
+  </action-attrs>
+
+  <action-attrs name="action-quality-improvement-attrs-set-defaults">
+    <attribute name="title" for="qiIdentification.partner"
+      expr="eval: com.axelor.i18n.I18n.get('Customer')" if="qiDetection?.origin == 3"/>
+    <attribute name="title" for="qiIdentification.partner"
+      expr="eval: com.axelor.i18n.I18n.get('Supplier')" if="qiDetection?.origin == 1"/>
+    <attribute name="title" for="qiIdentification.contact"
+      expr="eval: com.axelor.i18n.I18n.get('Customer contact')" if="qiDetection?.origin == 3"/>
+    <attribute name="title" for="qiIdentification.contact"
+      expr="eval: com.axelor.i18n.I18n.get('Supplier contact')" if="qiDetection?.origin == 1"/>
+    <attribute name="title" for="qiIdentification.stockMove"
+      expr="eval: com.axelor.i18n.I18n.get('Customer delivery note')" if="qiDetection?.origin == 3"/>
+    <attribute name="title" for="qiIdentification.stockMove"
+      expr="eval: com.axelor.i18n.I18n.get('Supplier delivery note')" if="qiDetection?.origin == 1"/>
+    <attribute name="title" for="qiIdentification.stockMoveLine"
+      expr="eval: com.axelor.i18n.I18n.get('Customer delivery note line')"
+      if="qiDetection?.origin == 3"/>
+    <attribute name="title" for="qiIdentification.stockMoveLine"
+      expr="eval: com.axelor.i18n.I18n.get('Supplier delivery note line')"
+      if="qiDetection?.origin == 1"/>
+  </action-attrs>
+
+  <action-group name="action-quality-improvement-group-partner-on-change">
+    <action name="action-quality-improvement-validate-partner-on-change"/>
+    <action name="action-quality-improvement-record-partner-on-change-set-values"/>
+    <action name="action-quality-improvement-attrs-set-dummy-field-values"/>
+  </action-group>
+
+  <action-group name="action-quality-improvement-group-customer-sale-order-on-change">
+    <action name="action-quality-improvement-validate-customer-sale-order-on-change"/>
+    <action name="action-quality-improvement-record-customer-sale-order-on-change-set-values"/>
+    <action name="action-quality-improvement-attrs-set-dummy-field-values"/>
+  </action-group>
+
+  <action-group
+    name="action-quality-improvement-group-customer-sale-order-line-on-change">
+    <action name="action-quality-improvement-validate-customer-sale-order-line-on-change"/>
+    <action
+      name="action-quality-improvement-record-customer-sale-order-line-on-change-set-values"/>
+    <action name="action-quality-improvement-attrs-set-dummy-field-values"/>
+  </action-group>
+
+  <action-group
+    name="action-quality-improvement-group-supplier-purchase-order-on-change">
+    <action name="action-quality-improvement-validate-supplier-purchase-order-on-change"/>
+    <action
+      name="action-quality-improvement-record-supplier-purchase-order-on-change-set-values"/>
+    <action name="action-quality-improvement-attrs-set-dummy-field-values"/>
+  </action-group>
+
+  <action-group
+    name="action-quality-improvement-group-supplier-purchase-order-line-on-change">
+    <action name="action-quality-improvement-validate-supplier-purchase-order-line-on-change"/>
+    <action
+      name="action-quality-improvement-record-supplier-purchase-order-line-on-change-set-values"/>
+    <action name="action-quality-improvement-attrs-set-dummy-field-values"/>
+  </action-group>
+
+  <action-group name="action-quality-improvement-group-stock-move-on-change">
+    <action name="action-quality-improvement-validate-stock-move-on-change"/>
+    <action name="action-quality-improvement-record-stock-move-on-change-set-values"/>
+    <action name="action-quality-improvement-attrs-set-dummy-field-values"/>
+  </action-group>
+
+  <action-group name="action-quality-improvement-group-manuf-order-on-change">
+    <action name="action-quality-improvement-validate-manuf-order-on-change"/>
+    <action name="action-quality-improvement-record-manuf-order-on-change-set-values"/>
+  </action-group>
+
+  <action-attrs name="action-quality-improvement-attrs-set-partner-domain">
+    <attribute name="domain" for="partner"
+      expr="eval: &quot; self.isCustomer = true &quot;" if="qi?.qiDetection?.origin == 3"/>
+    <attribute name="domain" for="partner"
+      expr="eval: &quot; self.isSupplier = true &quot;" if="qi?.qiDetection?.origin == 1"/>
+  </action-attrs>
+
+  <action-attrs name="action-qi-identification-attrs-set-detected-by-internal-domain">
+    <attribute name="domain" for="detectedByInternal"
+      expr="eval: &quot; self.isContact = true AND ${qi?.company?.id} MEMBER OF self.companySet &quot;"
+      if="qi"/>
+  </action-attrs>
+
+  <action-attrs name="action-quality-improvement-attrs-set-stock-move-domain">
+    <attribute name="domain" for="stockMove"
+      expr="eval: &quot; self.saleOrder = :customerSaleOrder &quot;"
+      if="qi?.qiDetection?.origin == 3"/>
+    <attribute name="domain" for="stockMove"
+      expr="eval: &quot; self.purchaseOrder = :supplierPurchaseOrder &quot;"
+      if="qi?.qiDetection?.origin == 1"/>
+  </action-attrs>
+
+  <action-attrs name="action-quality-improvement-attrs-set-stock-move-line-domain">
+    <attribute name="domain" for="stockMoveLine"
+      expr="eval: &quot; self.saleOrderLine = :customerSaleOrderLine &quot;"
+      if="qi?.qiDetection?.origin == 3"/>
+    <attribute name="domain" for="stockMoveLine"
+      expr="eval: &quot; self.purchaseOrderLine = :supplierPurchaseOrderLine &quot;"
+      if="qi?.qiDetection?.origin == 1"/>
+  </action-attrs>
+
+  <action-attrs name="action-quality-improvement-attrs-set-operation-order-domain">
+    <attribute name="domain" for="operationOrder"
+      expr="eval: &quot; self.id IN (${manufOrder?.operationOrderList?.collect{it.id}.join(',')}) &quot;"
+      if="!manufOrder.operationOrderList.isEmpty()"/>
+    <attribute name="domain" for="operationOrder"
+      expr="eval: &quot; self.id IN (0) &quot;" if="manufOrder.operationOrderList.isEmpty()"/>
+  </action-attrs>
+
+  <action-attrs
+    name="action-quality-improvement-attrs-set-to-consume-prod-product-domain">
+    <attribute name="domain" for="toConsumeProdProduct"
+      expr="eval: &quot; self.id IN (${manufOrder?.toConsumeProdProductList?.collect{it.id}.join(',')}) &quot;"
+      if="!manufOrder.toConsumeProdProductList.isEmpty()"/>
+    <attribute name="domain" for="toConsumeProdProduct"
+      expr="eval: &quot; self.id IN (0) &quot;" if="manufOrder.toConsumeProdProductList.isEmpty()"/>
+  </action-attrs>
+
+  <action-attrs name="action-quality-improvement-attrs-set-consume-prod-product-domain">
+    <attribute name="domain" for="consumeProdProduct"
+      expr="eval: &quot; self.id IN (${manufOrder?.consumedStockMoveLineList?.collect{it.id}.join(',')}) &quot;"
+      if="!manufOrder.consumedStockMoveLineList.isEmpty()"/>
+    <attribute name="domain" for="consumeProdProduct"
+      expr="eval: &quot; self.id IN (0) &quot;" if="manufOrder.consumedStockMoveLineList.isEmpty()"/>
+  </action-attrs>
+
+  <action-validate name="action-quality-improvement-validate-partner-on-change">
+    <alert message="All fields related to the order will be reset, continue ?"
+      if="customerSaleOrder != null || customerSaleOrderLine != null || supplierPurchaseOrder != null || supplierPurchaseOrderLine != null || stockMove != null || stockMoveLine != null"
+      action="action-quality-improvement-attrs-on-validate-set-field-values"/>
+  </action-validate>
+
+  <action-validate
+    name="action-quality-improvement-validate-customer-sale-order-on-change">
+    <alert
+      message="The following fields will be reset: customer order, stock move and stock move line , continue ?"
+      if="customerSaleOrderLine	 != null || stockMove != null || stockMoveLine != null"
+      action="action-quality-improvement-attrs-on-validate-set-field-values"/>
+  </action-validate>
+
+  <action-validate
+    name="action-quality-improvement-validate-customer-sale-order-line-on-change">
+    <alert
+      message="The following fields will be reset: customer stock move and customer stock move line , continue ?"
+      if="stockMove != null || stockMoveLine != null"
+      action="action-qi-improvement-attrs-on-validate-set-field-values"/>
+    <alert message="Changing this value will change value of product, continue ?"
+      if="customerSaleOrderLine != null &amp;&amp; product != null &amp;&amp; customerSaleOrderLine.product != product"
+      action="action-quality-improvement-attrs-on-validate-set-field-values"/>
+  </action-validate>
+
+  <action-validate
+    name="action-quality-improvement-validate-supplier-purchase-order-on-change">
+    <alert
+      message="The following fields will be reset: supplier order, stock move and stock move line , continue ?"
+      if="supplierPurchaseOrderLine != null || stockMove != null || stockMoveLine != null"
+      action="action-quality-improvement-attrs-on-validate-set-field-values"/>
+  </action-validate>
+
+  <action-validate
+    name="action-quality-improvement-validate-supplier-purchase-order-line-on-change">
+    <alert
+      message="The following fields will be reset: supplier stock move and supplier stock move line , continue ?"
+      if="stockMove != null || stockMoveLine != null"
+      action="action-qi-improvement-attrs-on-validate-set-field-values"/>
+    <alert message="Changing this value will change value of product, continue ?"
+      if="supplierPurchaseOrderLine != null &amp;&amp; product != null &amp;&amp; supplierPurchaseOrderLine.product != product"
+      action="action-quality-improvement-attrs-on-validate-set-field-values"/>
+  </action-validate>
+
+  <action-validate name="action-quality-improvement-validate-stock-move-on-change">
+    <alert message="The following fields will be reset: stock move line , continue ?"
+      if="stockMoveLine != null"
+      action="action-quality-improvement-attrs-on-validate-set-field-values"/>
+  </action-validate>
+
+  <action-validate name="action-quality-improvement-validate-manuf-order-on-change">
+    <alert
+      message="The following fields will be reset: operation order line, manuf Order product to consume, consummed manuf order product , continue ?"
+      if="operationOrder != null || toConsumeProdProduct != null || consummedProdProduct != null"/>
+  </action-validate>
+
+  <action-record
+    name="action-quality-improvement-record-customer-sale-order-on-change-set-values"
+    model="com.axelor.apps.quality.db.QIIdentification">
+    <field name="customerSaleOrderLine" expr="eval: null"/>
+    <field name="stockMove" expr="eval: null"/>
+    <field name="stockMoveLine" expr="eval: null"/>
+  </action-record>
+
+  <action-record
+    name="action-quality-improvement-record-customer-sale-order-line-on-change-set-values"
+    model="com.axelor.apps.quality.db.QIIdentification">
+    <field name="stockMove" expr="eval: null"/>
+    <field name="stockMoveLine" expr="eval: null"/>
+    <field name="product" expr="eval: customerSaleOrderLine.product"
+      if="customerSaleOrderLine != null &amp;&amp; product != null &amp;&amp; customerSaleOrderLine.product != product"/>
+  </action-record>
+
+  <action-record name="action-quality-improvement-record-partner-on-change-set-values"
+    model="com.axelor.apps.quality.db.QIIdentification">
+    <field name="customerSaleOrder" expr="eval: null"/>
+    <field name="customerSaleOrderLine" expr="eval: null"/>
+    <field name="supplierPurchaseOrder" expr="eval: null"/>
+    <field name="supplierPurchaseOrderLine" expr="eval: null"/>
+    <field name="stockMove" expr="eval: null"/>
+    <field name="stockMoveLine" expr="eval: null"/>
+  </action-record>
+
+  <action-record
+    name="action-quality-improvement-record-supplier-purchase-order-on-change-set-values"
+    model="com.axelor.apps.quality.db.QIIdentification">
+    <field name="supplierPurchaseOrderLine" expr="eval: null"/>
+    <field name="stockMove" expr="eval: null"/>
+    <field name="stockMoveLine" expr="eval: null"/>
+  </action-record>
+
+  <action-record
+    name="action-quality-improvement-record-supplier-purchase-order-line-on-change-set-values"
+    model="com.axelor.apps.quality.db.QIIdentification">
+    <field name="stockMove" expr="eval: null"/>
+    <field name="stockMoveLine" expr="eval: null"/>
+    <field name="product" expr="eval: supplierPurchaseOrderLine.product"
+      if="supplierPurchaseOrderLine != null &amp;&amp; product != null &amp;&amp; supplierPurchaseOrderLine.product != product"/>
+  </action-record>
+
+  <action-record
+    name="action-quality-improvement-record-stock-move-on-change-set-values"
+    model="com.axelor.apps.quality.db.QIIdentification">
+    <field name="stockMoveLine" expr="eval: null"/>
+  </action-record>
+
+  <action-record
+    name="action-quality-improvement-record-manuf-order-on-change-set-values"
+    model="com.axelor.apps.quality.db.QIIdentification">
+    <field name="operationOrder" expr="eval: null"/>
+    <field name="toConsumeProdProduct" expr="eval: null"/>
+    <field name="consummedProdProduct" expr="eval: null"/>
+  </action-record>
+
+  <action-record
+    name="action-quality-improvement-record-written-by-on-change-set-values"
+    model="com.axelor.apps.quality.db.QIIdentification">
+    <field name="writtenOn" expr="eval: __datetime__" if="writtenBy != null"/>
+    <field name="writtenOn" expr="eval: null" if="writtenBy == null"/>
+  </action-record>
+
+  <action-attrs name="action-quality-improvement-attrs-set-dummy-field-values">
+    <attribute name="value" for="$dummyPartner" expr="eval: partner" if="partner != null"/>
+    <attribute name="value" for="$dummyCustomerSaleOrder" expr="eval: customerSaleOrder"
+      if="customerSaleOrder != null"/>
+    <attribute name="value" for="$dummyCustomerSaleOrderLine"
+      expr="eval: customerSaleOrderLine" if="customerSaleOrderLine != null"/>
+    <attribute name="value" for="$dummySupplierPurchaseOrder"
+      expr="eval: supplierPurchaseOrder" if="supplierPurchaseOrder != null"/>
+    <attribute name="value" for="$dummySupplierPurchaseOrderLine"
+      expr="eval: supplierPurchaseOrderLine" if="supplierPurchaseOrderLine != null"/>
+    <attribute name="value" for="$dummyStockMove" expr="eval: stockMove"
+      if="stockMove != null"/>
+    <attribute name="value" for="$dummyStockMoveLine" expr="eval: stockMoveLine"
+      if="stockMoveLine != null"/>
+  </action-attrs>
+
+  <action-attrs name="action-quality-improvement-attrs-on-validate-set-field-values">
+    <attribute name="value" for="partner" expr="eval: dummyPartner"/>
+    <attribute name="value" for="customerSaleOrder" expr="eval: dummyCustomerSaleOrder"/>
+    <attribute name="value" for="customerSaleOrderLine"
+      expr="eval: dummyCustomerSaleOrderLine"/>
+    <attribute name="value" for="supplierPurchaseOrder"
+      expr="eval: dummySupplierPurchaseOrder"/>
+    <attribute name="value" for="supplierPurchaseOrderLine"
+      expr="eval: dummySupplierPurchaseOrderLine"/>
+    <attribute name="value" for="stockMove" expr="eval: dummyStockMove"/>
+    <attribute name="value" for="stockMoveLine" expr="eval: dummyStockMoveLine"/>
   </action-attrs>
 
 </object-views>

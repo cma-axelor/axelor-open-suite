@@ -24,6 +24,7 @@ import com.axelor.apps.base.db.repo.SequenceRepository;
 import com.axelor.apps.base.db.repo.TraceBackRepository;
 import com.axelor.apps.base.service.administration.SequenceService;
 import com.axelor.apps.base.service.exception.TraceBackService;
+import com.axelor.apps.quality.db.QIIdentification;
 import com.axelor.apps.quality.db.QualityImprovement;
 import com.axelor.apps.quality.exception.QualityExceptionMessage;
 import com.axelor.i18n.I18n;
@@ -62,6 +63,14 @@ public class QualityImprovementManagementRepository extends QualityImprovementRe
           qualityImprovement.setSequence(sequence);
         }
       }
+
+      QIIdentification qiIdentification = qualityImprovement.getQiIdentification();
+      if (qiIdentification == null) {
+        qiIdentification = new QIIdentification();
+        qiIdentification.setQi(qualityImprovement);
+        qualityImprovement.setQiIdentification(qiIdentification);
+      }
+
       return super.save(qualityImprovement);
 
     } catch (AxelorException e) {
