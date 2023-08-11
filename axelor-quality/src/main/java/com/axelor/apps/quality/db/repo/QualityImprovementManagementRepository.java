@@ -23,29 +23,37 @@ import com.axelor.apps.base.db.Company;
 import com.axelor.apps.base.db.repo.SequenceRepository;
 import com.axelor.apps.base.db.repo.TraceBackRepository;
 import com.axelor.apps.base.service.administration.SequenceService;
+import com.axelor.apps.base.service.app.AppBaseService;
 import com.axelor.apps.base.service.exception.TraceBackService;
 import com.axelor.apps.quality.db.QIIdentification;
+import com.axelor.apps.quality.db.QIResolution;
 import com.axelor.apps.quality.db.QualityImprovement;
 import com.axelor.apps.quality.exception.QualityExceptionMessage;
+import com.axelor.auth.AuthUtils;
+import com.axelor.common.StringUtils;
 import com.axelor.i18n.I18n;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
+import java.math.BigDecimal;
 import javax.persistence.PersistenceException;
 
 public class QualityImprovementManagementRepository extends QualityImprovementRepository {
 
   protected SequenceService sequenceService;
+  protected AppBaseService appBaseService;
 
   @Inject
-  public QualityImprovementManagementRepository(SequenceService sequenceService) {
+  public QualityImprovementManagementRepository(
+      SequenceService sequenceService, AppBaseService appBaseService) {
     this.sequenceService = sequenceService;
+    this.appBaseService = appBaseService;
   }
 
   @Override
   public QualityImprovement save(QualityImprovement qualityImprovement) {
     try {
+      Company company = qualityImprovement.getCompany();
       if (Strings.isNullOrEmpty(qualityImprovement.getSequence())) {
-        Company company = qualityImprovement.getCompany();
         String sequence =
             sequenceService.getSequenceNumber(
                 SequenceRepository.QUALITY_IMPROVEMENT,
@@ -64,12 +72,9 @@ public class QualityImprovementManagementRepository extends QualityImprovementRe
         }
       }
 
-      QIIdentification qiIdentification = qualityImprovement.getQiIdentification();
-      if (qiIdentification == null) {
-        qiIdentification = new QIIdentification();
-        qiIdentification.setQi(qualityImprovement);
-        qualityImprovement.setQiIdentification(qiIdentification);
-      }
+      updateQIIdentification(qualityImprovement);
+
+      getOrCreateQIResolution(qualityImprovement);
 
       return super.save(qualityImprovement);
 
@@ -77,5 +82,49 @@ public class QualityImprovementManagementRepository extends QualityImprovementRe
       TraceBackService.traceExceptionFromSaveMethod(e);
       throw new PersistenceException(e.getMessage(), e);
     }
+  }
+
+  protected QIIdentification getOrCreateQIIdentification(QualityImprovement qualityImprovement) {
+    QIIdentification qiIdentification = qualityImprovement.getQiIdentification();
+    if (qiIdentification == null) {
+      qiIdentification = new QIIdentification();
+      qiIdentification.setQi(qualityImprovement);
+    }
+    return qiIdentification;
+  }
+
+  protected void updateQIIdentification(QualityImprovement qualityImprovement) {
+    QIIdentification qiIdentification = getOrCreateQIIdentification(qualityImprovement);
+    Company company = qualityImprovement.getCompany();
+    if (qiIdentification.getPartner() != null
+        || qiIdentification.getContact() != null
+        || qiIdentification.getDetectedByInternal() != null
+        || qiIdentification.getCustomerSaleOrder() != null
+        || qiIdentification.getCustomerSaleOrderLine() != null
+        || qiIdentification.getSupplierPurchaseOrder() != null
+        || qiIdentification.getSupplierPurchaseOrderLine() != null
+        || qiIdentification.getStockMove() != null
+        || qiIdentification.getStockMoveLine() != null
+        || qiIdentification.getManufOrder() != null
+        || qiIdentification.getOperationOrder() != null
+        || qiIdentification.getToConsumeProdProduct() != null
+        || qiIdentification.getConsumedProdProduct() != null
+        || qiIdentification.getProduct() != null
+        || qiIdentification.getQualityControl() != null
+        || qiIdentification.getQuantity().compareTo(BigDecimal.ZERO) != 0
+        || qiIdentification.getNonConformingQuantity().compareTo(BigDecimal.ZERO) != 0
+        || StringUtils.notBlank(qiIdentification.getDocumentReference())) {
+      qiIdentification.setWrittenBy(AuthUtils.getUser());
+      qiIdentification.setWrittenOn(appBaseService.getTodayDateTime(company).toLocalDateTime());
+    }
+  }
+
+  protected QIResolution getOrCreateQIResolution(QualityImprovement qualityImprovement) {
+    QIResolution qiResolution = qualityImprovement.getQiResolution();
+    if (qiResolution == null) {
+      qiResolution = new QIResolution();
+      qiResolution.setQi(qualityImprovement);
+    }
+    return qiResolution;
   }
 }
