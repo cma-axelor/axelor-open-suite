@@ -551,9 +551,9 @@
       <![CDATA[
       <>
          <Box>
-      		{data.map(({date,status,closedWonStatus,closedLostStatus,type,activityName,description}) => {
+      		{data.map(({date,status,closedWonStatus,closedLostStatus,type,activityName,description},index) => {
       			return (
-      				<Box border borderColor="primary" borderWidth={1} rounded={2} m={2} style={{ width: 300 }}>
+      				<Box key={index} border borderColor="primary" borderWidth={1} rounded={2} m={2} style={{ width: 300 }}>
       					<Box d="flex" justifyContent="space-between" mt={2} ms={1} me={1}>
       						<Box fontWeight="bold" fontSize={6}>{$moment(date).format('DD/MM/YYYY HH:mm')}</Box>
       						{type == 'event' &&
