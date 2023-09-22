@@ -173,19 +173,13 @@
             showTitle="false" colSpan="6"/>
           <field name="$functionalOriginTag" showTitle="false" readonly="true" colSpan="6">
             <viewer depends="functionalOriginSelect">
-                        <![CDATA[
-                            <>
-                            	{functionalOriginSelect == 1 && <Badge bg="danger">{_t('Opening')}</Badge>}
-                            	{functionalOriginSelect == 2 && <Badge bg="danger">{_t('Closure')}</Badge>}
-                            	{functionalOriginSelect == 3 && <Badge bg="danger">{_t('Sale')}</Badge>}
-                            	{functionalOriginSelect == 4 && <Badge bg="danger">{_t('Purchase')}</Badge>}
-                            	{functionalOriginSelect == 5 && <Badge bg="danger">{_t('Payment')}</Badge>}
-                            	{functionalOriginSelect == 6 && <Badge bg="danger">{_t('Cut Off')}</Badge>}
-                            	{functionalOriginSelect == 7 && <Badge bg="danger">{_t('Fixed asset')}</Badge>}
-                            	{functionalOriginSelect == 8 && <Badge bg="danger">{_t('Doubtful customer')}</Badge>}
-                            	{functionalOriginSelect == 9 && <Badge bg="danger">{_t('Irrecoverable')}</Badge>}
-                            </>
-                        ]]>
+		          <![CDATA[
+		          		<>
+          					<Badge bg="danger">
+          						{_t(['Opening','Closure','Sale','Purchase','Payment','Cut Off','Fixed asset','Doubtful customer','Irrecoverable'][move.functionalOriginSelect-1])}
+          					</Badge>
+          				</>
+		          ]]>
             </viewer>
           </field>
 
