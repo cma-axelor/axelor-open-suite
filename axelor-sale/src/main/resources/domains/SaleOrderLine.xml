@@ -77,6 +77,12 @@
       mappedBy="mainSaleOrderLine"/>
     <many-to-one name="mainSaleOrderLine" ref="com.axelor.apps.sale.db.SaleOrderLine"/>
 
+    <!-- SUB LINES -->
+    <one-to-many name="subSoLineList" ref="com.axelor.apps.sale.db.SaleOrderLine"
+      title="Sub lines" mappedBy="parentSaleOrderLine"/>
+    <many-to-one name="parentSaleOrderLine" ref="com.axelor.apps.sale.db.SaleOrderLine"/>
+    <boolean name="isCounted" title="Countable" default="false"/>
+
     <!-- Margins -->
     <decimal name="subTotalCostPrice" title="SubTotal cost price"/>
     <decimal name="subTotalGrossMargin" title="Sub Total gross profit"/>

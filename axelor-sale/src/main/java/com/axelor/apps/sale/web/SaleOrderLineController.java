@@ -48,8 +48,12 @@ import com.axelor.rpc.ActionResponse;
 import com.axelor.rpc.Context;
 import com.google.inject.Singleton;
 import java.math.BigDecimal;
+import java.math.MathContext;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.commons.collections.CollectionUtils;
 
 @Singleton
 public class SaleOrderLineController {
@@ -329,6 +333,7 @@ public class SaleOrderLineController {
       newSaleOrderLine.put("id", saleOrderLine.getId());
       newSaleOrderLine.put("version", saleOrderLine.getVersion());
       newSaleOrderLine.put("typeSelect", saleOrderLine.getTypeSelect());
+      newSaleOrderLine.put("saleOrder", saleOrderLine.getSaleOrder());
       if (saleOrderLine.getTypeSelect() == SaleOrderLineRepository.TYPE_END_OF_PACK) {
         newSaleOrderLine.put("productName", I18n.get(ITranslation.SALE_ORDER_LINE_END_OF_PACK));
       }
@@ -450,5 +455,162 @@ public class SaleOrderLineController {
     } catch (Exception e) {
       TraceBackService.trace(response, e);
     }
+  }
+
+  public void subLinesOnChange(ActionRequest request, ActionResponse response)
+      throws AxelorException {
+    SaleOrderLine line = request.getContext().asType(SaleOrderLine.class);
+    List<SaleOrderLine> subSoLineList = line.getSubSoLineList();
+    BigDecimal unitPrice = BigDecimal.ZERO;
+    for (SaleOrderLine saleOrderLine : subSoLineList) {
+      unitPrice = unitPrice.add(saleOrderLine.getExTaxTotal());
+    }
+
+    if (isChildCounted(line)) {
+      line.setQty(BigDecimal.ONE);
+      line.setIsCounted(false);
+      response.setAttr("qty", "readonly", true);
+      if (subSoLineList.stream().anyMatch(SaleOrderLine::getIsCounted)) {
+        subSoLineList.stream().forEach(line2 -> line2.setIsCounted(true));
+      }
+    }
+
+    SaleOrderLineService saleOrderLineService = Beans.get(SaleOrderLineService.class);
+    line.setPrice(unitPrice);
+    if (line.getProduct() != null) {
+      line.setInTaxPrice(
+          saleOrderLineService.getInTaxUnitPrice(line.getSaleOrder(), line, line.getTaxLine()));
+    } else {
+      line.setInTaxPrice(unitPrice);
+    }
+    response.setValues(toMap(line));
+  }
+
+  public void computeValuesOfParent(ActionRequest request, ActionResponse response)
+      throws AxelorException {
+    SaleOrderLine line = request.getContext().asType(SaleOrderLine.class);
+    SaleOrderLineService saleOrderLineService = Beans.get(SaleOrderLineService.class);
+    saleOrderLineService.computeValues(line.getSaleOrder(), line);
+    response.setValues(toMap(line));
+  }
+
+  public void updateSubLinesQty(ActionRequest request, ActionResponse response) {
+    SaleOrderLine line = request.getContext().asType(SaleOrderLine.class);
+    Object qtyBeforeUpdate = request.getContext().get("qtyBeforeUpdate");
+    if (qtyBeforeUpdate == null) {
+      return;
+    }
+    BigDecimal oldQty = new BigDecimal(qtyBeforeUpdate.toString());
+    List<SaleOrderLine> subSoLineList = line.getSubSoLineList();
+    if (oldQty.signum() == 0 || CollectionUtils.isEmpty(subSoLineList)) {
+      return;
+    }
+    BigDecimal coef = line.getQty().divide(oldQty, MathContext.DECIMAL128);
+    for (SaleOrderLine subLine : subSoLineList) {
+      updateQty(coef, subLine);
+    }
+    response.setValues(toMap(line));
+  }
+
+  public void updateSubLinesPrice(ActionRequest request, ActionResponse response)
+      throws AxelorException {
+    SaleOrderLine line = request.getContext().asType(SaleOrderLine.class);
+    Object priceBeforeUpdate = request.getContext().get("priceBeforeUpdate");
+    if (priceBeforeUpdate == null) {
+      return;
+    }
+    BigDecimal oldPrice = new BigDecimal(priceBeforeUpdate.toString());
+    List<SaleOrderLine> subSoLineList = line.getSubSoLineList();
+    if (oldPrice.signum() == 0 || CollectionUtils.isEmpty(subSoLineList)) {
+      return;
+    }
+    BigDecimal coef = line.getPrice().divide(oldPrice, MathContext.DECIMAL128);
+    for (SaleOrderLine subLine : subSoLineList) {
+      updatePrice(coef, subLine);
+    }
+    response.setValues(toMap(line));
+  }
+
+  public void updateIsCounted(ActionRequest request, ActionResponse response) {
+    SaleOrderLine line = request.getContext().asType(SaleOrderLine.class);
+    List<SaleOrderLine> subSoLineList = line.getSubSoLineList();
+    if (CollectionUtils.isNotEmpty(subSoLineList) && Boolean.TRUE.equals(line.getIsCounted())) {
+
+      for (SaleOrderLine subLine : subSoLineList) {
+        updateIsCountedOnChildren(subLine, false);
+      }
+    }
+    response.setValues(toMap(line));
+  }
+
+  protected void updateIsCountedOnParent(SaleOrderLine line, boolean isCounted) {
+    line.setIsCounted(isCounted);
+    SaleOrderLine parentSaleOrderLine = line.getParentSaleOrderLine();
+    if (parentSaleOrderLine != null) {
+      updateIsCountedOnParent(parentSaleOrderLine, isCounted);
+    }
+  }
+
+  protected void updateIsCountedOnChildren(SaleOrderLine line, boolean isCounted) {
+    line.setIsCounted(isCounted);
+    List<SaleOrderLine> subSoLineList = line.getSubSoLineList();
+    if (CollectionUtils.isNotEmpty(subSoLineList)) {
+      for (SaleOrderLine subLine : subSoLineList) {
+        updateIsCountedOnChildren(subLine, isCounted);
+      }
+    }
+  }
+
+  protected void updateQty(BigDecimal coef, SaleOrderLine line) {
+    line.setQty(coef.multiply(line.getQty()));
+    if (CollectionUtils.isNotEmpty(line.getSubSoLineList())) {
+      for (SaleOrderLine subLine : line.getSubSoLineList()) {
+        updateQty(coef, subLine);
+      }
+    }
+  }
+
+  protected void updatePrice(BigDecimal coef, SaleOrderLine line) throws AxelorException {
+    SaleOrderLineService saleOrderLineService = Beans.get(SaleOrderLineService.class);
+    BigDecimal price = coef.multiply(line.getPrice());
+    line.setPrice(price);
+    if (line.getProduct() != null) {
+      line.setInTaxPrice(
+          saleOrderLineService.getInTaxUnitPrice(line.getSaleOrder(), line, line.getTaxLine()));
+    } else {
+      line.setInTaxPrice(price);
+    }
+
+    saleOrderLineService.computeValues(line.getSaleOrder(), line);
+
+    if (CollectionUtils.isNotEmpty(line.getSubSoLineList())) {
+      for (SaleOrderLine subLine : line.getSubSoLineList()) {
+        updatePrice(coef, subLine);
+      }
+    }
+  }
+
+  protected Map<String, Object> toMap(SaleOrderLine line) {
+    List<SaleOrderLine> subSoLineList = line.getSubSoLineList();
+    Map<String, Object> map = Mapper.toMap(line);
+    if (CollectionUtils.isEmpty(subSoLineList)) {
+      return map;
+    }
+    List<Map<String, Object>> subSoLineMapList = new ArrayList<>();
+    for (SaleOrderLine subLine : subSoLineList) {
+      subSoLineMapList.add(toMap(subLine));
+    }
+    map.put("subSoLineList", subSoLineMapList);
+    return map;
+  }
+
+  protected boolean isChildCounted(SaleOrderLine line) {
+
+    List<SaleOrderLine> subSoLineList = line.getSubSoLineList();
+    if (line.getIsCounted() || CollectionUtils.isEmpty(subSoLineList)) {
+      return line.getIsCounted();
+    }
+
+    return subSoLineList.stream().anyMatch(this::isChildCounted);
   }
 }
