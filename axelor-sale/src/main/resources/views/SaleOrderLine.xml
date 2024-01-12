@@ -146,16 +146,18 @@
         onChange="save,action-sale-order-line-method-empty-line"/>
       <panel name="subLinesTotalPanel" showIf="typeSelect == 1" colSpan="12">
         <field name="qty" colSpan="4"
-          onChange="action-sale-order-line-group-sub-so-line-qty-onchange"/>
+          readonlyIf="$isChildCounted || ($isReadOnly !== false &amp;&amp; !$get('saleOrder.orderBeingEdited'))"
+          validIf="$qtyValid != false" onChange="action-group-sale-saleorderline-qty-onchange"/>
         <field name="price" colSpan="4"
-          onChange="action-sale-order-line-group-sub-so-line-price-onchange"/>
+          onChange="action-sale-order-line-method-onchange-price,action-sale-order-line-method-compute,action-sale-order-line-method-compute-analytic-distribution,action-sale-order-line-group-sub-so-line-price-onchange"/>
         <field name="isCounted" colSpan="4"
           onChange="action-sale-order-line-method-is-counted-onchange"/>
-        <field name="exTaxTotal" readonly="true"/>
-        <field name="inTaxTotal" readonly="true"/>
+        <field name="exTaxTotal" readonly="true" colSpan="3"/>
+        <field name="inTaxTotal" readonly="true" colSpan="3"/>
         <panel-related name="subSoLineListPanel" field="subSoLineList"
           form-view="sale-order-line-form" grid-view="sale-order-line-grid" showIf="typeSelect == 1"
-          onChange="action-sale-order-line-group-sub-so-line-onchange" colSpan="12"/>
+          onChange="action-sale-order-line-method-sub-so-line-onchange,action-sale-order-line-method-set-is-child-counted"
+          colSpan="12"/>
       </panel>
       <field name="isShowTotal" colSpan="3"
         onChange="action-sale-order-line-record-reset-is-hide-unit-amounts"
@@ -424,6 +426,7 @@
       <field name="product.isUnrenewed"/>
       <field name="product.isPrototype"/>
       <field name="saleOrder"/>
+      <field name="$isChildCounted" type="boolean"/>
       <field name="$qtyBeforeUpdate" type="decimal"/>
       <field name="$priceBeforeUpdate" type="decimal"/>
     </panel>
@@ -630,6 +633,7 @@
     <action name="action-sale-order-line-attrs-display-different-language-message"/>
     <action name="action-sale-order-line-attrs-values-before-update"/>
     <action name="action-sale-order-line-attrs-subline-qty-editable"/>
+    <action name="action-sale-order-line-method-set-is-child-counted"/>
   </action-group>
 
   <action-group name="action-group-sale-saleorderline-product-onchange">
@@ -667,6 +671,7 @@
     <action name="action-sale-order-line-record-update-requested-reserved-qty-from-qty"
       if="__config__.app.isApp('supplychain') &amp;&amp; __config__.app.getApp('supplychain')?.getManageStockReservation()"/>
     <action name="action-sale-order-line-record-complementary-products-to-handle"/>
+    <action name="action-sale-order-line-group-sub-so-line-qty-onchange"/>
   </action-group>
 
   <action-group name="action-group-sale-saleorderline-unit-onchange">
@@ -700,19 +705,12 @@
       if="__id__"/>
   </action-group>
 
-  <action-group name="action-sale-order-line-group-sub-so-line-onchange">
-    <action name="action-sale-order-line-method-sub-so-line-onchange"/>
-    <action name="action-sale-order-line-method-sub-so-line-compute-values"/>
-  </action-group>
-
   <action-group name="action-sale-order-line-group-sub-so-line-qty-onchange">
-    <action name="action-sale-order-line-method-sub-so-line-compute-values"/>
     <action name="action-sale-order-line-method-sub-so-line-update-sublines-qty"/>
     <action name="action-sale-order-line-attrs-values-before-update"/>
   </action-group>
 
   <action-group name="action-sale-order-line-group-sub-so-line-price-onchange">
-    <action name="action-sale-order-line-method-sub-so-line-compute-values"/>
     <action name="action-sale-order-line-method-sub-so-line-update-sublines-price"/>
     <action name="action-sale-order-line-attrs-values-before-update"/>
   </action-group>
@@ -865,11 +863,6 @@
     <call class="com.axelor.apps.supplychain.web.SaleOrderLineController" method="checkStocks"/>
   </action-method>
 
-  <action-method name="action-sale-order-line-method-sub-so-line-compute-values">
-    <call class="com.axelor.apps.sale.web.SaleOrderLineController"
-      method="computeValuesOfParent"/>
-  </action-method>
-
   <action-method name="action-sale-order-line-method-sub-so-line-update-sublines-qty">
     <call class="com.axelor.apps.sale.web.SaleOrderLineController" method="updateSubLinesQty"/>
   </action-method>
@@ -881,6 +874,14 @@
 
   <action-method name="action-sale-order-line-method-is-counted-onchange">
     <call class="com.axelor.apps.sale.web.SaleOrderLineController" method="updateIsCounted"/>
+  </action-method>
+
+  <action-method name="action-sale-order-line-method-sub-so-line-onchange">
+    <call class="com.axelor.apps.sale.web.SaleOrderLineController" method="subLinesOnChange"/>
+  </action-method>
+
+  <action-method name="action-sale-order-line-method-set-is-child-counted">
+    <call class="com.axelor.apps.sale.web.SaleOrderLineController" method="setIsChildCounted"/>
   </action-method>
 
   <!-- ACTION ATTRS -->
@@ -1062,9 +1063,5 @@
   <action-attrs name="action-sale-order-line-attrs-subline-qty-editable">
     <attribute name="readonly" for="qty" expr="eval: false"/>
   </action-attrs>
-
-  <action-method name="action-sale-order-line-method-sub-so-line-onchange">
-    <call class="com.axelor.apps.sale.web.SaleOrderLineController" method="subLinesOnChange"/>
-  </action-method>
 
 </object-views>

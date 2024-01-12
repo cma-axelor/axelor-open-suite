@@ -49,6 +49,7 @@ import com.axelor.rpc.Context;
 import com.google.inject.Singleton;
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -461,37 +462,33 @@ public class SaleOrderLineController {
       throws AxelorException {
     SaleOrderLine line = request.getContext().asType(SaleOrderLine.class);
     List<SaleOrderLine> subSoLineList = line.getSubSoLineList();
-    BigDecimal unitPrice = BigDecimal.ZERO;
+    BigDecimal totalWT = BigDecimal.ZERO;
     for (SaleOrderLine saleOrderLine : subSoLineList) {
-      unitPrice = unitPrice.add(saleOrderLine.getExTaxTotal());
+      totalWT = totalWT.add(saleOrderLine.getExTaxTotal());
     }
 
     if (isChildCounted(line)) {
       line.setQty(BigDecimal.ONE);
       line.setIsCounted(false);
-      response.setAttr("qty", "readonly", true);
       if (subSoLineList.stream().anyMatch(SaleOrderLine::getIsCounted)) {
         subSoLineList.stream().forEach(line2 -> line2.setIsCounted(true));
       }
     }
 
     SaleOrderLineService saleOrderLineService = Beans.get(SaleOrderLineService.class);
-    line.setPrice(unitPrice);
+    line.setPrice(
+        totalWT.divide(
+            line.getQty(),
+            Beans.get(AppBaseService.class).getNbDecimalDigitForUnitPrice(),
+            RoundingMode.HALF_EVEN));
     if (line.getProduct() != null) {
       line.setInTaxPrice(
           saleOrderLineService.getInTaxUnitPrice(line.getSaleOrder(), line, line.getTaxLine()));
     } else {
-      line.setInTaxPrice(unitPrice);
+      line.setInTaxPrice(totalWT);
     }
-    response.setValues(toMap(line));
-  }
-
-  public void computeValuesOfParent(ActionRequest request, ActionResponse response)
-      throws AxelorException {
-    SaleOrderLine line = request.getContext().asType(SaleOrderLine.class);
-    SaleOrderLineService saleOrderLineService = Beans.get(SaleOrderLineService.class);
     saleOrderLineService.computeValues(line.getSaleOrder(), line);
-    response.setValues(toMap(line));
+    response.setValues(line);
   }
 
   public void updateSubLinesQty(ActionRequest request, ActionResponse response) {
@@ -541,6 +538,11 @@ public class SaleOrderLineController {
       }
     }
     response.setValues(toMap(line));
+  }
+
+  public void setIsChildCounted(ActionRequest request, ActionResponse response) {
+    SaleOrderLine line = request.getContext().asType(SaleOrderLine.class);
+    response.setValue("$isChildCounted", isChildCounted(line));
   }
 
   protected void updateIsCountedOnParent(SaleOrderLine line, boolean isCounted) {
