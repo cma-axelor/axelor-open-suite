@@ -476,9 +476,13 @@ public class SaleOrderLineController {
     }
 
     SaleOrderLineService saleOrderLineService = Beans.get(SaleOrderLineService.class);
+    BigDecimal qty = line.getQty();
+    if (qty.signum() == 0) {
+      qty = BigDecimal.ONE;
+    }
     line.setPrice(
         totalWT.divide(
-            line.getQty(),
+            qty,
             Beans.get(AppBaseService.class).getNbDecimalDigitForUnitPrice(),
             RoundingMode.HALF_EVEN));
     if (line.getProduct() != null) {

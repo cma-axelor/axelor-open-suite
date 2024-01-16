@@ -120,7 +120,7 @@
 			public static final int TYPE_TITLE = 1;
             public static final int TYPE_START_OF_PACK = 2;
             public static final int TYPE_END_OF_PACK = 3;
-
+			public static final int TYPE_PARENT = 4;
 	  	]]>
     </extra-code>
 
