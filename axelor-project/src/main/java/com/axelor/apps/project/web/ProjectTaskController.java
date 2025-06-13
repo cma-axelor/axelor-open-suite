@@ -338,4 +338,22 @@ public class ProjectTaskController {
     response.setValues(
         Beans.get(ProjectTaskGroupService.class).updateBudgetedTime(projectTask, oldTimeUnit));
   }
+
+  @ErrorException
+  public void statusOnSelect(ActionRequest request, ActionResponse response) {
+    ProjectTask projectTask = request.getContext().asType(ProjectTask.class);
+    Project project = projectTask.getProject();
+
+    Set<TaskStatus> taskStatusSet =
+        Beans.get(TaskStatusToolService.class).getTaskStatusSet(project, projectTask);
+    String filter = "self.id IN (0)";
+    if (ObjectUtils.notEmpty(taskStatusSet)) {
+      filter =
+          taskStatusSet.stream()
+              .map(TaskStatus::getId)
+              .map(String::valueOf)
+              .collect(Collectors.joining(",", "self.id IN (", ")"));
+    }
+    response.setAttr("status", "domain", filter);
+  }
 }

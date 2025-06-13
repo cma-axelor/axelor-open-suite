@@ -31,6 +31,7 @@ import com.axelor.apps.project.db.repo.ProjectTaskRepository;
 import com.axelor.apps.project.db.repo.TaskStatusRepository;
 import com.axelor.apps.project.exception.ProjectExceptionMessage;
 import com.axelor.apps.project.service.ProjectCheckListTemplateService;
+import com.axelor.apps.project.service.ProjectFavouriteService;
 import com.axelor.apps.project.service.ProjectService;
 import com.axelor.apps.project.service.ProjectTaskToolService;
 import com.axelor.apps.project.service.app.AppProjectService;
@@ -228,5 +229,19 @@ public class ProjectController {
     if (Beans.get(SprintService.class).checkSprintOverlap(project)) {
       response.setError(ProjectExceptionMessage.PROJECT_SPRINTS_OVERLAPPED);
     }
+  }
+
+  public void addToFavProject(ActionRequest request, ActionResponse response) {
+    Project project = request.getContext().asType(Project.class);
+    project = Beans.get(ProjectRepository.class).find(project.getId());
+    Beans.get(ProjectFavouriteService.class).addToCurrentUserToFavProject(project);
+    response.setReload(true);
+  }
+
+  public void removeFromFavProject(ActionRequest request, ActionResponse response) {
+    Project project = request.getContext().asType(Project.class);
+    project = Beans.get(ProjectRepository.class).find(project.getId());
+    Beans.get(ProjectFavouriteService.class).removeCurrentUserFromFavProject(project);
+    response.setReload(true);
   }
 }

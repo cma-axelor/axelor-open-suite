@@ -23,7 +23,10 @@ import com.axelor.apps.businessproject.service.projecttask.ProjectTaskProgressUp
 import com.axelor.apps.hr.db.repo.ProjectTaskHRRepository;
 import com.axelor.apps.project.db.ProjectTask;
 import com.google.inject.Inject;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Collections;
+import java.util.Map;
 import javax.persistence.PersistenceException;
 
 public class ProjectTaskBusinessProjectRepository extends ProjectTaskHRRepository {
@@ -57,5 +60,24 @@ public class ProjectTaskBusinessProjectRepository extends ProjectTaskHRRepositor
       throw new PersistenceException(e.getMessage(), e);
     }
     return projectTask;
+  }
+
+  @Override
+  public Map<String, Object> populate(Map<String, Object> json, Map<String, Object> context) {
+    Map<String, Object> map = super.populate(json, context);
+    if (json != null && json.get("id") != null) {
+      Long id = (Long) json.get("id");
+      ProjectTask projectTask = find(id);
+      BigDecimal value =
+          projectTask.getPlannedTime().signum() == 0
+              ? BigDecimal.ZERO
+              : projectTask
+                  .getSpentTime()
+                  .divide(projectTask.getPlannedTime())
+                  .multiply(new BigDecimal(100));
+      json.put("$timeSpentPerPlanned", value.setScale(2, RoundingMode.HALF_UP));
+    }
+
+    return map;
   }
 }
