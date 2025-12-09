@@ -155,6 +155,12 @@ public class MrpLineServiceProductionImpl extends MrpLineServiceImpl {
       billOfMaterial = billOfMaterialService.getDefaultBOM(product, company);
     }
 
+    if (billOfMaterial == null) {
+      throw new AxelorException(
+          TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
+          I18n.get(ProductionExceptionMessage.DEFAULT_BOM_MISSING_ON_PRODUCT));
+    }
+
     if (isAsapScheduling) {
       plannedStartDateT = maturityDate.atStartOfDay();
     } else {
@@ -169,12 +175,6 @@ public class MrpLineServiceProductionImpl extends MrpLineServiceImpl {
       plannedEndDateT =
           maturityDateTime.plusMinutes(
               getTotalDurationInMinutes(billOfMaterial.getProdProcess(), qty));
-    }
-    if (billOfMaterial == null) {
-      throw new AxelorException(
-          TraceBackRepository.CATEGORY_CONFIGURATION_ERROR,
-          I18n.get(ProductionExceptionMessage.MRP_BOM_REQUIRED),
-          product.getFullName());
     }
     if (billOfMaterial.getProdProcess() == null) {
       throw new AxelorException(

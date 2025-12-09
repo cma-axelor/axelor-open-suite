@@ -897,6 +897,7 @@
 "The condition formula to generate the bill of material returns null value or is not consistent. Please correct on configurator BOM id : %s.",,,
 "The condition formula to generate the prod process line returns null value or is not consistent. Please correct on prod process line configurator id : %s.",,,
 "The condition formula to generate the prod product returns null value or is not consistent. Please correct on prod product configurator id : %s.",,,
+"The default BOM is missing on the product",,,
 "The formula script to fill the checkbox manage consumed products on phases returns null value or is not consistent. Please correct on prod process configurator id : %s.",,,
 "The formula script to fill the name returns null value. Please correct on prod process configurator id : %s.",,,
 "The formula script to fill the name returns null value. Please correct on prod process line configurator id : %s.",,,

@@ -1,0 +1,3 @@
+---
+title: "MRP: Improve error message on proposal generation when product to produce lacks default BOM"
+module: axelor-production
