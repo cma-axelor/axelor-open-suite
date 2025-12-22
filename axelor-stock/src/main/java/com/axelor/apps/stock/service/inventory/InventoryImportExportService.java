@@ -16,14 +16,17 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.axelor.apps.stock.service;
+package com.axelor.apps.stock.service.inventory;
 
 import com.axelor.apps.base.AxelorException;
 import com.axelor.apps.stock.db.Inventory;
-import com.axelor.auth.db.User;
+import com.axelor.meta.db.MetaFile;
+import java.io.IOException;
+import java.nio.file.Path;
 
-public interface InventoryUpdateService {
+public interface InventoryImportExportService {
 
-  void updateInventoryStatus(Inventory inventory, Integer wantedStatus, User user)
-      throws AxelorException;
+  Path importFile(Inventory inventory) throws AxelorException;
+
+  MetaFile exportInventoryAsCSV(Inventory inventory) throws IOException;
 }
