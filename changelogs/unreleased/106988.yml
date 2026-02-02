@@ -1,0 +1,3 @@
+---
+title: "Production order: fixed an error occurring when generating a production order from a sale order when auto plan is enabled."
+module: axelor-production
