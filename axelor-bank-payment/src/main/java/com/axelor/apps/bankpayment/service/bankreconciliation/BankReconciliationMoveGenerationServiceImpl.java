@@ -97,7 +97,7 @@ import org.slf4j.LoggerFactory;
 public class BankReconciliationMoveGenerationServiceImpl
     implements BankReconciliationMoveGenerationService {
 
-  protected static final int AUTO_ACCOUNTING_BATCH_SIZE = 40;
+  protected static final int AUTO_ACCOUNTING_BATCH_SIZE = 20;
   protected static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   protected BankReconciliationLineRepository bankReconciliationLineRepository;
@@ -186,17 +186,13 @@ public class BankReconciliationMoveGenerationServiceImpl
     while (bankReconciliationLines.size() > 0) {
       pageNumber++;
       totalFetchedLineCount += bankReconciliationLines.size();
-      Map<AutoAccountingRuleKey, List<PreparedAutoAccountingRule>>
-          preparedAutoAccountingRulesByKey =
-              groupPreparedAutoAccountingRules(
-                  prepareAutoAccountingRules(
-                      bankReconciliation, collectAutoAccountingRuleKeys(bankReconciliationLines)));
-      List<AutoAccountingWorkItem> autoAccountingWorkItems =
-          collectAutoAccountingWorkItems(bankReconciliationLines, preparedAutoAccountingRulesByKey);
-
-      int preparedRuleCount =
-          preparedAutoAccountingRulesByKey.values().stream().mapToInt(List::size).sum();
-      int pageEligibleLineCount = autoAccountingWorkItems.size();
+      Set<AutoAccountingRuleKey> autoAccountingRuleKeys = new HashSet<>();
+      int pageEligibleLineCount =
+          collectAutoAccountingRuleKeys(bankReconciliationLines, autoAccountingRuleKeys);
+      int pageResolvedLineCount = 0;
+      Map<AutoAccountingRuleKey, List<PreparedAutoAccountingRule>> autoAccountingRulesByKey =
+          getAutoAccountingRulesByKey(bankReconciliation, autoAccountingRuleKeys);
+      int preparedRuleCount = autoAccountingRulesByKey.values().stream().mapToInt(List::size).sum();
       totalEligibleLineCount += pageEligibleLineCount;
 
       LOG.info(
@@ -207,17 +203,37 @@ public class BankReconciliationMoveGenerationServiceImpl
           pageEligibleLineCount,
           preparedRuleCount);
 
-      for (AutoAccountingWorkItem autoAccountingWorkItem : autoAccountingWorkItems) {
-        processAutoAccountingWorkItem(autoAccountingWorkItem, bankReconciliation);
+      for (BankReconciliationLine bankReconciliationLine : bankReconciliationLines) {
+        if (bankReconciliationLine.getMoveLine() != null
+            || bankReconciliationLine.getBankStatementLine() == null) {
+          continue;
+        }
+
+        BankStatementLine bankStatementLine = bankReconciliationLine.getBankStatementLine();
+        AutoAccountingRuleKey autoAccountingRuleKey = AutoAccountingRuleKey.of(bankStatementLine);
+        List<PreparedAutoAccountingRule> autoAccountingRules =
+            autoAccountingRuleKey != null
+                ? autoAccountingRulesByKey.getOrDefault(
+                    autoAccountingRuleKey, Collections.emptyList())
+                : Collections.emptyList();
+        processAutoAccountingRules(
+            bankReconciliation, bankReconciliationLine, bankStatementLine, autoAccountingRules);
+
+        if (bankReconciliationLine.getMoveLine() == null
+            && bankReconciliationLine.getAccount() != null
+            && bankReconciliation.getCashAccount() != null
+            && bankReconciliation.getJournal() != null) {
+        	Move move = generateMove(bankReconciliationLine, null);
+          moveValidateService.accounting(move);
+        }
+        if (bankReconciliationLine.getMoveLine() == null) {
+          manageDynamicSearchOnMoveLines(bankReconciliationLine);
+        }
+        if (bankReconciliationLine.getMoveLine() != null) {
+          pageResolvedLineCount++;
+        }
       }
 
-      int pageResolvedLineCount =
-          (int)
-              autoAccountingWorkItems.stream()
-                  .filter(
-                      autoAccountingWorkItem ->
-                          autoAccountingWorkItem.getBankReconciliationLine().getMoveLine() != null)
-                  .count();
       totalResolvedLineCount += pageResolvedLineCount;
 
       LOG.info(
@@ -243,6 +259,89 @@ public class BankReconciliationMoveGenerationServiceImpl
         totalFetchedLineCount,
         totalEligibleLineCount,
         totalResolvedLineCount);
+  }
+
+  protected int collectAutoAccountingRuleKeys(
+      List<BankReconciliationLine> bankReconciliationLines,
+      Set<AutoAccountingRuleKey> autoAccountingRuleKeys) {
+    int pageEligibleLineCount = 0;
+    for (BankReconciliationLine bankReconciliationLine : bankReconciliationLines) {
+      if (bankReconciliationLine.getMoveLine() != null
+          || bankReconciliationLine.getBankStatementLine() == null) {
+        continue;
+      }
+      pageEligibleLineCount++;
+      AutoAccountingRuleKey autoAccountingRuleKey =
+          AutoAccountingRuleKey.of(bankReconciliationLine.getBankStatementLine());
+      if (autoAccountingRuleKey != null) {
+        autoAccountingRuleKeys.add(autoAccountingRuleKey);
+      }
+    }
+    return pageEligibleLineCount;
+  }
+
+  protected Map<AutoAccountingRuleKey, List<PreparedAutoAccountingRule>>
+      getAutoAccountingRulesByKey(
+          BankReconciliation bankReconciliation,
+          Set<AutoAccountingRuleKey> autoAccountingRuleKeys) {
+    Map<AutoAccountingRuleKey, List<PreparedAutoAccountingRule>> autoAccountingRulesByKey =
+        new HashMap<>();
+    for (BankStatementRule autoAccountingRule :
+        fetchAutoAccountingRules(bankReconciliation, autoAccountingRuleKeys)) {
+      AutoAccountingRuleKey autoAccountingRuleKey = AutoAccountingRuleKey.of(autoAccountingRule);
+      if (autoAccountingRuleKey == null) {
+        continue;
+      }
+      autoAccountingRulesByKey
+          .computeIfAbsent(autoAccountingRuleKey, ignored -> new ArrayList<>())
+          .add(new PreparedAutoAccountingRule(autoAccountingRule));
+    }
+    return autoAccountingRulesByKey;
+  }
+
+  protected void processAutoAccountingRules(
+      BankReconciliation bankReconciliation,
+      BankReconciliationLine bankReconciliationLine,
+      BankStatementLine bankStatementLine,
+      List<PreparedAutoAccountingRule> autoAccountingRules)
+      throws AxelorException {
+    if (autoAccountingRules.isEmpty()) {
+      return;
+    }
+
+    Context scriptContext =
+        new Context(Mapper.toMap(bankStatementLine), BankStatementLineAFB120.class);
+    GroovyScriptHelper groovyScriptHelper = new GroovyScriptHelper(scriptContext);
+
+    for (PreparedAutoAccountingRule preparedAutoAccountingRule : autoAccountingRules) {
+      BankStatementRule bankStatementRule = preparedAutoAccountingRule.bankStatementRule;
+
+      if (bankStatementRule.getBankStatementQuery() != null
+          && !Strings.isNullOrEmpty(preparedAutoAccountingRule.preparedQuery)
+          && Boolean.TRUE.equals(
+              groovyScriptHelper.eval(preparedAutoAccountingRule.preparedQuery))) {
+
+        checkAccountBeforeAutoAccounting(bankStatementRule, bankReconciliation);
+
+        if (bankStatementRule.getAccountManagement().getJournal() == null) {
+          continue;
+        }
+
+        Move move;
+        MoveLine moveLine = bankStatementLine.getMoveLine();
+        if (moveLine != null) {
+          bankReconciliationLineService.reconcileBRLAndMoveLine(bankReconciliationLine, moveLine);
+          move = moveLine.getMove();
+        } else {
+          move = generateMove(bankReconciliationLine, bankStatementRule);
+          moveValidateService.accounting(move);
+        }
+        if (bankStatementRule.getLetterToInvoice()) {
+          letterToInvoice(bankStatementRule, bankReconciliationLine, move);
+        }
+        return;
+      }
+    }
   }
 
   protected List<BankStatementRule> fetchAutoAccountingRules(
@@ -299,139 +398,6 @@ public class BankReconciliationMoveGenerationServiceImpl
     return query;
   }
 
-  protected List<PreparedAutoAccountingRule> prepareAutoAccountingRules(
-      BankReconciliation bankReconciliation, Set<AutoAccountingRuleKey> autoAccountingRuleKeys) {
-    List<PreparedAutoAccountingRule> preparedAutoAccountingRules = new ArrayList<>();
-    for (BankStatementRule autoAccountingRule :
-        fetchAutoAccountingRules(bankReconciliation, autoAccountingRuleKeys)) {
-      preparedAutoAccountingRules.add(new PreparedAutoAccountingRule(autoAccountingRule));
-    }
-    return preparedAutoAccountingRules;
-  }
-
-  protected Set<AutoAccountingRuleKey> collectAutoAccountingRuleKeys(
-      List<BankReconciliationLine> bankReconciliationLines) {
-    Set<AutoAccountingRuleKey> autoAccountingRuleKeys = new HashSet<>();
-    for (BankReconciliationLine bankReconciliationLine : bankReconciliationLines) {
-      if (bankReconciliationLine.getMoveLine() != null
-          || bankReconciliationLine.getBankStatementLine() == null) {
-        continue;
-      }
-      AutoAccountingRuleKey key =
-          AutoAccountingRuleKey.of(bankReconciliationLine.getBankStatementLine());
-      if (key != null) {
-        autoAccountingRuleKeys.add(key);
-      }
-    }
-    return autoAccountingRuleKeys;
-  }
-
-  protected List<PreparedAutoAccountingRule> getPreparedAutoAccountingRules(
-      Map<AutoAccountingRuleKey, List<PreparedAutoAccountingRule>> preparedAutoAccountingRulesByKey,
-      BankStatementLine bankStatementLine) {
-    AutoAccountingRuleKey key = AutoAccountingRuleKey.of(bankStatementLine);
-    if (key != null) {
-      return preparedAutoAccountingRulesByKey.getOrDefault(key, Collections.emptyList());
-    }
-    return Collections.emptyList();
-  }
-
-  protected Map<AutoAccountingRuleKey, List<PreparedAutoAccountingRule>>
-      groupPreparedAutoAccountingRules(
-          List<PreparedAutoAccountingRule> preparedAutoAccountingRules) {
-    Map<AutoAccountingRuleKey, List<PreparedAutoAccountingRule>> preparedAutoAccountingRulesByKey =
-        new HashMap<>();
-    for (PreparedAutoAccountingRule preparedAutoAccountingRule : preparedAutoAccountingRules) {
-      AutoAccountingRuleKey key =
-          AutoAccountingRuleKey.of(preparedAutoAccountingRule.getBankStatementRule());
-      if (key == null) {
-        continue;
-      }
-      preparedAutoAccountingRulesByKey
-          .computeIfAbsent(key, ignored -> new ArrayList<>())
-          .add(preparedAutoAccountingRule);
-    }
-    return preparedAutoAccountingRulesByKey;
-  }
-
-  protected List<AutoAccountingWorkItem> collectAutoAccountingWorkItems(
-      List<BankReconciliationLine> bankReconciliationLines,
-      Map<AutoAccountingRuleKey, List<PreparedAutoAccountingRule>>
-          preparedAutoAccountingRulesByKey) {
-    List<AutoAccountingWorkItem> autoAccountingWorkItems = new ArrayList<>();
-    for (BankReconciliationLine bankReconciliationLine : bankReconciliationLines) {
-      if (bankReconciliationLine.getMoveLine() != null
-          || bankReconciliationLine.getBankStatementLine() == null) {
-        continue;
-      }
-      BankStatementLine bankStatementLine = bankReconciliationLine.getBankStatementLine();
-      Context scriptContext =
-          new Context(Mapper.toMap(bankStatementLine), BankStatementLineAFB120.class);
-      autoAccountingWorkItems.add(
-          new AutoAccountingWorkItem(
-              bankReconciliationLine,
-              bankStatementLine,
-              new GroovyScriptHelper(scriptContext),
-              getPreparedAutoAccountingRules(preparedAutoAccountingRulesByKey, bankStatementLine)));
-    }
-    return autoAccountingWorkItems;
-  }
-
-  protected void processAutoAccountingWorkItem(
-      AutoAccountingWorkItem autoAccountingWorkItem, BankReconciliation bankReconciliation)
-      throws AxelorException {
-    BankReconciliationLine bankReconciliationLine =
-        autoAccountingWorkItem.getBankReconciliationLine();
-    Move move;
-
-    for (PreparedAutoAccountingRule preparedAutoAccountingRule :
-        autoAccountingWorkItem.getPreparedAutoAccountingRules()) {
-      BankStatementRule bankStatementRule = preparedAutoAccountingRule.getBankStatementRule();
-
-      if (bankStatementRule.getBankStatementQuery() != null
-          && !Strings.isNullOrEmpty(preparedAutoAccountingRule.getPreparedQuery())
-          && Boolean.TRUE.equals(
-              autoAccountingWorkItem
-                  .getGroovyScriptHelper()
-                  .eval(preparedAutoAccountingRule.getPreparedQuery()))) {
-
-        checkAccountBeforeAutoAccounting(bankStatementRule, bankReconciliation);
-
-        if (bankStatementRule.getAccountManagement().getJournal() == null) {
-          continue;
-        }
-
-        MoveLine moveLine =
-            Optional.of(autoAccountingWorkItem)
-                .map(AutoAccountingWorkItem::getBankStatementLine)
-                .map(BankStatementLine::getMoveLine)
-                .orElse(null);
-        if (moveLine != null) {
-          bankReconciliationLineService.reconcileBRLAndMoveLine(bankReconciliationLine, moveLine);
-          move = moveLine.getMove();
-        } else {
-          move = generateMove(bankReconciliationLine, bankStatementRule);
-          moveValidateService.accounting(move);
-        }
-        if (bankStatementRule.getLetterToInvoice()) {
-          letterToInvoice(bankStatementRule, bankReconciliationLine, move);
-        }
-        break;
-      }
-    }
-
-    if (bankReconciliationLine.getMoveLine() == null
-        && bankReconciliationLine.getAccount() != null
-        && bankReconciliation.getCashAccount() != null
-        && bankReconciliation.getJournal() != null) {
-      move = generateMove(bankReconciliationLine, null);
-      moveValidateService.accounting(move);
-    }
-    if (bankReconciliationLine.getMoveLine() == null) {
-      manageDynamicSearchOnMoveLines(bankReconciliationLine);
-    }
-  }
-
   protected void letterToInvoice(
       BankStatementRule bankStatementRule, BankReconciliationLine bankReconciliationLine, Move move)
       throws AxelorException {
@@ -454,6 +420,23 @@ public class BankReconciliationMoveGenerationServiceImpl
       } else {
         reconcileService.reconcile(fetchedMoveLine, generatedMoveLineToLetter, false, true);
       }
+    }
+  }
+
+  protected static final class PreparedAutoAccountingRule {
+
+    private final BankStatementRule bankStatementRule;
+    private final String preparedQuery;
+
+    protected PreparedAutoAccountingRule(BankStatementRule bankStatementRule) {
+      this.bankStatementRule = bankStatementRule;
+      this.preparedQuery =
+          Optional.ofNullable(bankStatementRule)
+              .map(BankStatementRule::getBankStatementQuery)
+              .map(BankStatementQuery::getQuery)
+              .filter(StringUtils::notBlank)
+              .map(query -> query.replace("%s", "\"" + bankStatementRule.getSearchLabel() + "\""))
+              .orElse(null);
     }
   }
 
@@ -518,67 +501,6 @@ public class BankReconciliationMoveGenerationServiceImpl
     @Override
     public int hashCode() {
       return Objects.hash(bankDetailsId, interbankCodeLineId);
-    }
-  }
-
-  protected static final class PreparedAutoAccountingRule {
-
-    private final BankStatementRule bankStatementRule;
-    private final String preparedQuery;
-
-    protected PreparedAutoAccountingRule(BankStatementRule bankStatementRule) {
-      this.bankStatementRule = bankStatementRule;
-      this.preparedQuery =
-          Optional.ofNullable(bankStatementRule)
-              .map(BankStatementRule::getBankStatementQuery)
-              .map(BankStatementQuery::getQuery)
-              .filter(StringUtils::notBlank)
-              .map(
-                  query -> query.replaceAll("%s", "\"" + bankStatementRule.getSearchLabel() + "\""))
-              .orElse(null);
-    }
-
-    protected BankStatementRule getBankStatementRule() {
-      return bankStatementRule;
-    }
-
-    protected String getPreparedQuery() {
-      return preparedQuery;
-    }
-  }
-
-  protected static final class AutoAccountingWorkItem {
-
-    private final BankReconciliationLine bankReconciliationLine;
-    private final BankStatementLine bankStatementLine;
-    private final GroovyScriptHelper groovyScriptHelper;
-    private final List<PreparedAutoAccountingRule> preparedAutoAccountingRules;
-
-    protected AutoAccountingWorkItem(
-        BankReconciliationLine bankReconciliationLine,
-        BankStatementLine bankStatementLine,
-        GroovyScriptHelper groovyScriptHelper,
-        List<PreparedAutoAccountingRule> preparedAutoAccountingRules) {
-      this.bankReconciliationLine = bankReconciliationLine;
-      this.bankStatementLine = bankStatementLine;
-      this.groovyScriptHelper = groovyScriptHelper;
-      this.preparedAutoAccountingRules = preparedAutoAccountingRules;
-    }
-
-    protected BankReconciliationLine getBankReconciliationLine() {
-      return bankReconciliationLine;
-    }
-
-    protected BankStatementLine getBankStatementLine() {
-      return bankStatementLine;
-    }
-
-    protected GroovyScriptHelper getGroovyScriptHelper() {
-      return groovyScriptHelper;
-    }
-
-    protected List<PreparedAutoAccountingRule> getPreparedAutoAccountingRules() {
-      return preparedAutoAccountingRules;
     }
   }
 

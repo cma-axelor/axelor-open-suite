@@ -368,7 +368,7 @@ public class BankReconciliationController {
 
   public void autoAccounting(ActionRequest request, ActionResponse response) {
     try {
-    	long start = System.currentTimeMillis();
+      long start = System.currentTimeMillis();
       BankReconciliation bankReconciliation = request.getContext().asType(BankReconciliation.class);
       Beans.get(BankReconciliationMoveGenerationService.class)
           .generateMovesAutoAccounting(bankReconciliation);
@@ -376,7 +376,7 @@ public class BankReconciliationController {
           .computeBalances(
               Beans.get(BankReconciliationRepository.class).find(bankReconciliation.getId()));
       response.setReload(true);
-      System.err.println(System.currentTimeMillis()-start);
+      System.err.println(System.currentTimeMillis() - start);
     } catch (Exception e) {
       TraceBackService.trace(response, e, ResponseMessageType.ERROR);
     }
