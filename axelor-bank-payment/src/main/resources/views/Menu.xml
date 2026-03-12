@@ -272,4 +272,9 @@
     <domain>self.typeSelect = 3</domain>
   </action-view>
 
+  <menuitem name="account-bank-reconciliation-stress-data-generator"
+    parent="account-conf-bank-accounting-reconciliation"
+    title="Reconciliation stress data generator"
+    action="action-view-bank-reconciliation-stress-data-generator" order="400"/>
+
 </object-views>

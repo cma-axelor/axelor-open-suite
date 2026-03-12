@@ -129,6 +129,8 @@ import com.axelor.apps.bankpayment.service.bankreconciliation.BankReconciliation
 import com.axelor.apps.bankpayment.service.bankreconciliation.BankReconciliationSelectedLineComputationServiceImpl;
 import com.axelor.apps.bankpayment.service.bankreconciliation.BankReconciliationService;
 import com.axelor.apps.bankpayment.service.bankreconciliation.BankReconciliationServiceImpl;
+import com.axelor.apps.bankpayment.service.bankreconciliation.BankReconciliationStressDataGeneratorService;
+import com.axelor.apps.bankpayment.service.bankreconciliation.BankReconciliationStressDataGeneratorServiceImpl;
 import com.axelor.apps.bankpayment.service.bankstatement.BankStatementBankDetailsService;
 import com.axelor.apps.bankpayment.service.bankstatement.BankStatementBankDetailsServiceImpl;
 import com.axelor.apps.bankpayment.service.bankstatement.BankStatementDateService;
@@ -318,6 +320,8 @@ public class BankPaymentModule extends AxelorModule {
         .to(BankReconciliationReconciliationServiceImpl.class);
     bind(BankReconciliationSelectedLineComputationService.class)
         .to(BankReconciliationSelectedLineComputationServiceImpl.class);
+    bind(BankReconciliationStressDataGeneratorService.class)
+        .to(BankReconciliationStressDataGeneratorServiceImpl.class);
     bind(BankReconciliationLineRepository.class)
         .to(BankReconciliationLineManagementRepository.class);
     bind(BankStatementLineRepository.class).to(BankStatementLineManagementRepository.class);

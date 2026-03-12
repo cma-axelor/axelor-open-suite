@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<object-views xmlns="http://axelor.com/xml/ns/object-views"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://axelor.com/xml/ns/object-views http://axelor.com/xml/ns/object-views/object-views_8.0.xsd">
+
+  <form name="bank-reconciliation-stress-data-generator-form"
+    title="Reconciliation stress data generator" model="com.axelor.utils.db.Wizard"
+    onNew="action-bank-reconciliation-stress-data-generator-record-defaults" canSave="false"
+    canNew="false" canCopy="false" canDelete="false" width="large">
+    <panel name="mainPanel" title="Generator setup" colSpan="12">
+      <field name="$company" title="Company" type="many-to-one"
+        target="com.axelor.apps.base.db.Company" required="true"
+        onChange="action-bank-reconciliation-stress-data-generator-record-reset-journal"/>
+      <field name="$bankDetails" title="Bank details" type="many-to-one"
+        target="com.axelor.apps.base.db.BankDetails" target-name="fullName" required="true"/>
+      <field name="$journal" title="Journal" type="many-to-one"
+        target="com.axelor.apps.account.db.Journal" required="true"
+        domain="(:company IS NULL OR self.company = :company) AND (:scenarioModeSelect != 2 OR self.authorizedFunctionalOriginSelect IS NULL OR self.authorizedFunctionalOriginSelect = '5' OR self.authorizedFunctionalOriginSelect LIKE '5,%' OR self.authorizedFunctionalOriginSelect LIKE '%,5' OR self.authorizedFunctionalOriginSelect LIKE '%,5,%')"/>
+      <field name="$currency" title="Currency" type="many-to-one"
+        target="com.axelor.apps.base.db.Currency" required="true"/>
+      <field name="$cashAccount" title="Cash account" type="many-to-one"
+        target="com.axelor.apps.account.db.Account" required="true"/>
+      <field name="$counterpartAccount" title="Counterpart account" type="many-to-one"
+        target="com.axelor.apps.account.db.Account" required="true"/>
+      <field name="$scenarioModeSelect" title="Scenario" type="integer"
+        selection="bankpayment.bank.reconciliation.stress.data.generator.mode.select"
+        required="true"
+        onChange="action-bank-reconciliation-stress-data-generator-record-reset-journal"/>
+      <field name="$generationProfileSelect" title="Profile" type="integer"
+        selection="bankpayment.bank.reconciliation.stress.data.generator.profile.select"
+        required="true"/>
+      <field name="$prefix" title="Prefix" type="string" required="true"/>
+      <field name="$queryCount" title="Query count" type="integer" required="true"
+        validIf="$queryCount &gt; 0"/>
+      <field name="$reconciliationLineCount" title="Reconciliation line count" type="integer"
+        required="true" validIf="$reconciliationLineCount &gt; 0"/>
+      <field name="$workloadCount" title="Workload count" type="integer" required="true"
+        validIf="$workloadCount &gt; 0"/>
+      <label colSpan="12" showIf="$scenarioModeSelect == 1"
+        title="Reconciliation mode: query count controls reconciliation queries and workload count controls candidate moves."/>
+      <label colSpan="12" showIf="$scenarioModeSelect == 2"
+        title="Auto-accounting mode: query count controls hit buckets and workload count controls accounting auto rules."/>
+      <label colSpan="12"
+        showIf="$scenarioModeSelect == 1 &amp;&amp; $generationProfileSelect == 2"
+        title="Worst-case reconciliation profile: generated queries never match, so every query scans every eligible line against every candidate move line."/>
+      <label colSpan="12"
+        showIf="$scenarioModeSelect == 2 &amp;&amp; $generationProfileSelect == 2"
+        title="Worst-case auto-accounting profile: all eligible lines share one key and match only on the last generated rule."/>
+      <button name="generateStressDataBtn" title="Generate"
+        onClick="action-bank-reconciliation-stress-data-generator-method-generate"
+        readonlyIf="$company == null || $bankDetails == null || $journal == null || $currency == null || $cashAccount == null || $counterpartAccount == null || $scenarioModeSelect == null || $generationProfileSelect == null || !$prefix || $queryCount == null || $reconciliationLineCount == null || $workloadCount == null"/>
+    </panel>
+  </form>
+
+  <action-view name="action-view-bank-reconciliation-stress-data-generator"
+    title="Reconciliation stress data generator" model="com.axelor.utils.db.Wizard">
+    <view type="form" name="bank-reconciliation-stress-data-generator-form"/>
+    <view-param name="show-toolbar" value="false"/>
+    <view-param name="show-confirm" value="false"/>
+    <view-param name="popup-save" value="false"/>
+  </action-view>
+
+  <action-record model="com.axelor.utils.db.Wizard"
+    name="action-bank-reconciliation-stress-data-generator-record-defaults">
+    <field name="$company" expr="eval: __user__.activeCompany"/>
+    <field name="$bankDetails" expr="eval: __user__.activeCompany?.defaultBankDetails"/>
+    <field name="$currency" expr="eval: __user__.activeCompany?.currency"/>
+    <field name="$cashAccount"
+      expr="eval: __repo__(Account).all().filter('self.code = ?1 AND self.company = ?2', '512100', __user__.activeCompany).fetchOne()"/>
+    <field name="$counterpartAccount"
+      expr="eval: __repo__(Account).all().filter('self.code = ?1 AND self.company = ?2', '471000', __user__.activeCompany).fetchOne()"/>
+    <field name="$scenarioModeSelect" expr="eval: 2"/>
+    <field name="$generationProfileSelect" expr="eval: 1"/>
+    <field name="$prefix" expr="eval: 'STRESS'"/>
+    <field name="$queryCount" expr="eval: 10"/>
+    <field name="$reconciliationLineCount" expr="eval: 100"/>
+    <field name="$workloadCount" expr="eval: 100"/>
+  </action-record>
+
+  <action-record model="com.axelor.utils.db.Wizard"
+    name="action-bank-reconciliation-stress-data-generator-record-reset-journal">
+    <field name="$journal" expr="eval: null"/>
+  </action-record>
+
+  <action-method
+    name="action-bank-reconciliation-stress-data-generator-method-generate">
+    <call
+      class="com.axelor.apps.bankpayment.web.BankReconciliationStressDataGeneratorController"
+      method="generate"/>
+  </action-method>
+
+</object-views>

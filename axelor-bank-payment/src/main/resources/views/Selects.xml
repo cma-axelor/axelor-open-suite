@@ -27,6 +27,16 @@
     <option value="2" color="green">Imported</option>
   </selection>
 
+  <selection name="bankpayment.bank.reconciliation.stress.data.generator.mode.select">
+    <option value="1">Reconciliation</option>
+    <option value="2">Auto-accounting</option>
+  </selection>
+
+  <selection name="bankpayment.bank.reconciliation.stress.data.generator.profile.select">
+    <option value="1">Standard</option>
+    <option value="2">Worst-case</option>
+  </selection>
+
   <selection name="bankpayment.bank.order.type.select">
     <option value="1">SEPA Credit Transfer</option>
     <option value="2">SEPA Direct Debit</option>
